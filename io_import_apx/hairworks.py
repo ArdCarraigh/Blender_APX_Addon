@@ -5,7 +5,7 @@ import bpy
 import math
 import random
 from bpy_extras.object_utils import object_data_add
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
 
@@ -258,8 +258,17 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
                 if i > int(used_bones_count):
                     break
             b = skeleton.edit_bones.new(boneNames2[i])
-            b.head = (float(bindPoses2[i][12]), float(bindPoses2[i][13]), float(bindPoses2[i][14]))
-            b.tail = (float(bindPoses2[i][12])+random.uniform(0.1,1), float(bindPoses2[i][13])+random.uniform(0.1,1), float(bindPoses2[i][14])+random.uniform(0.1,1))
+            
+            matrix = Matrix((Vector((float(bindPoses2[i][0]), float(bindPoses2[i][1]), float(bindPoses2[i][2]), float(bindPoses2[i][3]))),
+                                    Vector((float(bindPoses2[i][4]), float(bindPoses2[i][5]), float(bindPoses2[i][6]), float(bindPoses2[i][7]))),
+                                    Vector((float(bindPoses2[i][8]), float(bindPoses2[i][9]), float(bindPoses2[i][10]), float(bindPoses2[i][11]))),
+                                    Vector((float(bindPoses2[i][12]), float(bindPoses2[i][13]), float(bindPoses2[i][14]), float(bindPoses2[i][15])))
+                                    ))
+                                    
+            matrix.transpose()
+            b.head = Vector((matrix.col[3][0:3]))
+            b.tail = Vector((matrix.col[1][0:3])) + b.head
+            #b.roll = ??
 
         # Back to object mode
         bpy.ops.object.mode_set(mode='OBJECT')

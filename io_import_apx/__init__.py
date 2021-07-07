@@ -102,6 +102,28 @@ class ImportApx(Operator, ImportHelper):
         default=False
     )
 
+    def draw(self, context):
+        layout = self.layout
+        
+        sections = ["General", "Clothing", "Hairworks"]
+        
+        section_options = {
+            "General" : ["rotate_180", "minimal_armature"], 
+            "Clothing" : ["rm_db", "use_mat"], 
+            "Hairworks" : ["scale_down"]
+        }
+        
+        section_icons = {
+            "General" : "WORLD", "Clothing" : "MESH_DATA", "Hairworks" : "MESH_DATA"
+        }
+        
+        for section in sections:
+            row = layout.row()
+            box = row.box()
+            box.label(text=section, icon=section_icons[section])
+            for prop in section_options[section]:
+                box.prop(self, prop)
+                
     def execute(self, context):
         return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.minimal_armature)
 

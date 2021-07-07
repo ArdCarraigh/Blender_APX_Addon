@@ -5,7 +5,7 @@ import bpy
 import math
 import random
 from bpy_extras.object_utils import object_data_add
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from io_import_apx import number_to_words
 from io_import_apx.number_to_words import process, getWords
 
@@ -342,8 +342,17 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 temp10 = line.split()
                 bone_name = temp10[2][14:len(temp10[2])-8]
                 b = skeleton.edit_bones.new(bone_name)
-                b.head = (float(bind_pose[9]), float(bind_pose[10]), float(bind_pose[11]))
-                b.tail = (float(bind_pose[9])+random.uniform(0.001,0.01), float(bind_pose[10])+random.uniform(0.001,0.01), float(bind_pose[11])+random.uniform(0.001,0.01))
+                
+                matrix = Matrix((Vector((float(bind_pose[0]), float(bind_pose[1]), float(bind_pose[2]), 0)),
+                                    Vector((float(bind_pose[3]), float(bind_pose[4]), float(bind_pose[5]), 0)),
+                                    Vector((float(bind_pose[6]), float(bind_pose[7]), float(bind_pose[8]), 0)),
+                                    Vector((float(bind_pose[9]), float(bind_pose[10]), float(bind_pose[11]), 1))
+                                    ))
+                                    
+                matrix.transpose()
+                b.head = Vector((matrix.col[3][0:3]))
+                b.tail = Vector((matrix.col[1][0:3])) + b.head
+                #b.roll = ??
 
 
         # Back to object mode
