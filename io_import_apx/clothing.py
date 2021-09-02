@@ -12,7 +12,225 @@ from io_import_apx.number_to_words import process, getWords
 def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature):
 
     with open(filepath, 'r', encoding='utf-8') as file:
+        
+        ## Physical ##
+        for line in file:
+            if 'array name="physicalMeshes"' in line:
+                temp16 = line.split()
+                physicalMeshes_count = temp16[2][6:-1]
+                physicalMeshes_names = []
+                physicalMeshes_boneIndices_all = []
+                physicalMeshes_boneWeights_all = []
+                break
+        
+        # For all physical meshes
+        for w in range(int(physicalMeshes_count)):
+            
+            # Vertices
+            for line in file:
+                if 'array name="vertices"' in line:
+                    vertices = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    for j in range(len(vertices)):
+                        if "," in vertices[j]:
+                            l = len(vertices[j])
+                            vertices[j] = vertices[j][:l - 1]
+                    break
+                temp17 = line.split()
+                for i in temp17:
+                    vertices.append(i)
+                        
+            # Normals
+            for line in file:
+                if 'array name="normals"' in line:
+                    normals = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    for j in range(len(normals)):
+                        if "," in normals[j]:
+                            l = len(normals[j])
+                            normals[j] = normals[j][:l - 1]
+                    break
+                temp18 = line.split()
+                for i in temp18:
+                    normals.append(i)
+                        
+            # Skinning Normals ??
+            for line in file:
+                if 'array name="skinningNormals"' in line:
+                    skinningNormals = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    for j in range(len(skinningNormals)):
+                        if "," in skinningNormals[j]:
+                            l = len(skinningNormals[j])
+                            skinningNormals[j] = skinningNormals[j][:l - 1]
+                    break
+                temp19 = line.split()
+                for i in temp19:
+                    skinningNormals.append(i)
+                        
+            # Constrain Coefficients
+            for line in file:
+                if 'array name="constrainCoefficients"' in line:
+                    constrainCoefficients = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    list_coma = []
+                    n = 0
+                    for j in range(len(constrainCoefficients)):
+                        if "," in constrainCoefficients[j]:
+                            list_coma.append(j)
+                    for k in list_coma:
+                        constrainCoefficients.insert(k + n + 1, constrainCoefficients[k + n][constrainCoefficients[k + n].find(",") + 1:len(constrainCoefficients[k + n])])
+                        constrainCoefficients[k + n] = constrainCoefficients[k + n][:constrainCoefficients[k + n].find(",")]
+                        n += 1
+                    constrainCoefficients2 = list(filter(None, constrainCoefficients))
+                    break
+                temp20 = line.split()
+                for i in temp20:
+                    constrainCoefficients.append(i)
+                    
+            # Bone Indices
+            for line in file:
+                if 'array name="boneIndices"' in line:
+                    boneIndices = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    break
+                temp21 = line.split()
+                for i in temp21:
+                    boneIndices.append(i)
+                    
+            # Bone Weights
+            for line in file:
+                if 'array name="boneWeights"' in line:
+                    boneWeights = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    break
+                temp22 = line.split()
+                for i in temp22:
+                    boneWeights.append(i)
+                    
+            # Optimization Data ??
+            for line in file: 
+                if 'array name="optimizationData"' in line:
+                    break
+                
+            # Face Indices
+            for line in file:
+                if 'array name="indices"' in line:
+                    indices = []
+                    break
+            for line in file:
+                if '/array' in line:
+                    break
+                temp23 = line.split()
+                for i in temp23:
+                    indices.append(i)
+                    
+            # Maximum MaximumDistance Value
+            for line in file:
+                if 'value name="maximumMaxDistance"' in line:
+                    temp24 = line.split()
+                    maximumMaxDistance = temp24[2][11:len(temp24[2])-8]
+                    break
+                    
+            # Creation of the physical meshes
+            verts = []
+            for i in range(0,len(vertices), 3):
+                verts.append(Vector((float(vertices[i]), float(vertices[i+1]), float(vertices[i+2]))))
+            edges = []
+            faces = []
+            for i in range(0,len(indices), 3):
+                faces.append([int(indices[i]), int(indices[i+1]),int(indices[i+2])])
+                    
+            normals2 = []
+            for i in range(0, len(normals), 3):
+                normals2.append(Vector([float(normals[i]), float(normals[i+1]), float(normals[i+2])]))
+            
+            # Prepare Clothing Paints
+            clothingPaints = []
+            for i in range(0, len(constrainCoefficients2), 3):
+                clothingPaints.append([(float(constrainCoefficients2[i])/float(maximumMaxDistance)), float(constrainCoefficients2[i+1]), float(constrainCoefficients2[i+2])])
+                
+            maximumDistance = []
+            backstopRadius = []
+            backstopDistance = []
+            for i in range(len(clothingPaints)):
+                maximumDistance.append([clothingPaints[i][0], clothingPaints[i][0], clothingPaints[i][0], 1])
+                backstopRadius.append([clothingPaints[i][1], clothingPaints[i][1], clothingPaints[i][1], 1])
+                backstopDistance.append([clothingPaints[i][2], clothingPaints[i][2], clothingPaints[i][2], 1])
+                
+            # Add the mesh to the scene
+            mesh = bpy.data.meshes.new(name="PMesh_lod"+str(w))
+            mesh.from_pydata(verts, edges, faces)
+            for i in mesh.polygons:
+                i.use_smooth = True
+            object_data_add(context, mesh)
+            
+            # Normals #Looks like this part is kinda useless
+            mesh.calc_normals()
+            for i in range(len(mesh.vertices)):
+                mesh.vertices[i].normal = normals2[i]
+            for face in mesh.polygons:
+                for vert in [mesh.loops[i] for i in face.loop_indices]:
+                    vert.normal = normals2[vert.vertex_index]
+                    
+            # Apply Clothing Paints
+            mesh.vertex_colors.new(name="MaximumDistance")
+            for face in mesh.polygons:
+                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                    if maximumDistance[vert_idx][0] == 0:
+                        mesh.vertex_colors["MaximumDistance"].data[loop_idx].color = [1,0,1,1]
+                    else:
+                        mesh.vertex_colors["MaximumDistance"].data[loop_idx].color = maximumDistance[vert_idx]
+                        
+            mesh.vertex_colors.new(name="BackstopRadius")
+            for face in mesh.polygons:
+                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                    if backstopRadius[vert_idx][0] == 0:
+                        mesh.vertex_colors["BackstopRadius"].data[loop_idx].color = [1,0,1,1]
+                    else:
+                        mesh.vertex_colors["BackstopRadius"].data[loop_idx].color = backstopRadius[vert_idx]
+                        
+            mesh.vertex_colors.new(name="BackstopDistance")
+            for face in mesh.polygons:
+                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                    if backstopDistance[vert_idx][0] == 0:
+                        mesh.vertex_colors["BackstopDistance"].data[loop_idx].color = [1,0,1,1]
+                    else:
+                        mesh.vertex_colors["BackstopDistance"].data[loop_idx].color = backstopDistance[vert_idx] 
 
+            # Rotation of the mesh if requested
+            if rotate_180 == True:
+                bpy.context.active_object.rotation_euler[2] = math.radians(180)
+                
+            # Get the actual mesh name in a list
+            physicalMeshes_names.append(bpy.context.active_object.name)
+
+            # Creation of bones indices and weights list for all lods
+            boneIndices3 = []
+            for i in range(0, len(boneIndices), 4):
+                boneIndices3.append([int(boneIndices[i]), int(boneIndices[i+1]), int(boneIndices[i+2]),
+                                    int(boneIndices[i+3])])
+            boneWeights3 = []
+            for i in range(0, len(boneWeights), 4):
+                boneWeights3.append([float(boneWeights[i]), float(boneWeights[i+1]), float(boneWeights[i+2]),
+                                    float(boneWeights[i+3])])
+            physicalMeshes_boneIndices_all.append(boneIndices3)
+            physicalMeshes_boneWeights_all.append(boneWeights3)
+            
+        
+        ## Graphical ##
         SEMANTIC_POSITION = False
         SEMANTIC_NORMAL = False
         SEMANTIC_TANGENT = False
@@ -93,7 +311,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         for i in temp:
                             vertices.append(i)
 
-                #Normals
+                # Normals
                 if SEMANTIC_NORMAL == True:
                     for line in file:
                         if 'array name="data"' in line:
@@ -110,7 +328,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         for i in temp2:
                             normals.append(i)
 
-                #Tangents
+                # Tangents
                 if SEMANTIC_TANGENT == True:
                     for line in file:
                         if 'array name="data"' in line:
@@ -133,17 +351,34 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         for i in temp3:
                             tangents.append(i)
 
-                #Binormals ??
+                # Binormals
                 if SEMANTIC_BINORMAL == True:
                     for line in file:
                         if 'array name="data"' in line:
                             break
 
-                # Vertex Color?
+                # Vertex Color
                 if SEMANTIC_COLOR == True:
                     for line in file:
                         if 'array name="data"' in line:
+                            vertex_color = []
                             break
+                    for line in file:
+                        if '/array' in line:
+                            list_coma = []
+                            n = 0
+                            for j in range(len(vertex_color)):
+                                if "," in vertex_color[j]:
+                                    list_coma.append(j)
+                            for k in list_coma:
+                                vertex_color.insert(k + n + 1, vertex_color[k + n][vertex_color[k + n].find(",") + 1:len(vertex_color[k + n])])
+                                vertex_color[k + n] = vertex_color[k + n][:vertex_color[k + n].find(",")]
+                                n += 1
+                            vertex_color2 = list(filter(None, vertex_color))
+                            break
+                        temp14 = line.split()
+                        for i in temp14:
+                            vertex_color.append(i)
 
                 # UVmaps
                 if SEMANTIC_TEXCOORD0 == True:
@@ -223,7 +458,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         if 'array name="data"' in line:
                             break
 
-                # Faces
+                # Faces Indices
                 for line in file:
                     if 'array name="indexBuffer"' in line:
                         indices = []
@@ -236,7 +471,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         indices.append(i)
 
 
-                # Creation of the mesh
+                # Creation of the graphical meshes
                 verts = []
                 for i in range(0,len(vertices), 3):
                     verts.append(Vector((float(vertices[i]), float(vertices[i+1]), float(vertices[i+2]))))
@@ -244,9 +479,22 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 faces = []
                 for i in range(0,len(indices), 3):
                     faces.append([int(indices[i]), int(indices[i+1]),int(indices[i+2])])
+                    
                 normals2 = []
                 for i in range(0, len(normals), 3):
-                    normals2.append([float(normals[i]), float(normals[i+1]), float(normals[i+2])])
+                    normals2.append(Vector([float(normals[i]), float(normals[i+1]), float(normals[i+2])]))
+                tangents3 = []
+                for i in range(0, len(tangents2), 4):
+                    tangents3.append(Vector([float(tangents2[i]), float(tangents2[i + 1]), float(tangents2[i + 2])]))
+                bitangent_sign0 = []
+                for i in range(0, len(tangents2), 4):
+                    bitangent_sign0.append(float(tangents2[i+3]))
+                    
+                if SEMANTIC_COLOR == True:
+                    vertex_color3 = []
+                    for i in range(0, len(vertex_color2), 4):
+                        vertex_color3.append([float(vertex_color2[i])/255, float(vertex_color2[i + 1])/255, float(vertex_color2[i + 2])/255, float(vertex_color2[i + 3])/255])
+                        
                 texCoords2_all = []
                 for u in range(SEMANTIC_TEXCOORDs):
                     texCoords3 = []
@@ -255,17 +503,11 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                     texCoords2_all.append(texCoords3)
 
                 # Add the mesh to the scene
-                mesh = bpy.data.meshes.new(name="Mesh_lod"+str(lod_number))
+                mesh = bpy.data.meshes.new(name="GMesh_lod"+str(lod_number))
                 mesh.from_pydata(verts, edges, faces)
-                for i in range(len(mesh.vertices)):
-                    mesh.vertices[i].normal = normals2[i]
                 for i in mesh.polygons:
                     i.use_smooth = True
                 object_data_add(context, mesh)
-
-                # Rotation of the mesh if requested
-                if rotate_180 == True:
-                    bpy.context.active_object.rotation_euler[2] = math.radians(180)
 
                 # UVmaps creation
                 uvmap_names = []
@@ -276,6 +518,31 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                     for face in mesh.polygons:
                         for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
                             mesh.uv_layers.active.data[loop_idx].uv = (texCoords2_all[i][vert_idx][0], texCoords2_all[i][vert_idx][1])
+                            
+                # Tangent and Normals #Looks like this part is kinda useless
+                mesh.calc_normals()
+                for i in range(len(mesh.vertices)):
+                    mesh.vertices[i].normal = normals2[i]
+                mesh.calc_tangents()
+                for face in mesh.polygons:
+                    for vert in [mesh.loops[i] for i in face.loop_indices]:
+                        vert.normal = normals2[vert.vertex_index]
+                        #Read-only... :(
+                        #vert.tangent = tangents3[vert.vertex_index]
+                        #vert.bitangent_sign = bitangent_sign0[vert.vertex_index]
+                        
+                # Vertex Color
+                mesh.vertex_colors.new()
+                for face in mesh.polygons:
+                    for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                        if SEMANTIC_COLOR == False:
+                            mesh.vertex_colors.active.data[loop_idx].color = (0, 0, 0, 1)
+                        else:
+                            mesh.vertex_colors.active.data[loop_idx].color = vertex_color3[vert_idx]
+
+                # Rotation of the mesh if requested
+                if rotate_180 == True:
+                    bpy.context.active_object.rotation_euler[2] = math.radians(180)
 
                 # Get the actual mesh name in a list
                 mesh_names.append(bpy.context.active_object.name)
@@ -364,7 +631,29 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
 
         arma_name = bpy.context.active_object.name
 
-        # Parenting
+        # Parenting Physical Meshes
+        for y in range(len(physicalMeshes_names)):
+            bpy.context.view_layer.objects.active = None
+            bpy.context.view_layer.objects.active = bpy.data.objects[physicalMeshes_names[y]]
+            bpy.context.active_object.select_set(state=True)
+            bpy.context.view_layer.objects.active = bpy.data.objects[arma_name]
+            bpy.ops.object.parent_set(type="ARMATURE_NAME", xmirror=False, keep_transform=False)
+
+            # Weighting Physical Meshes
+            bpy.context.view_layer.objects.active = None
+            bpy.context.view_layer.objects.active = bpy.data.objects[physicalMeshes_names[y]]
+            mesh2 = bpy.data.objects[physicalMeshes_names[y]]
+            for j in range(len(mesh2.data.vertices)):
+                if physicalMeshes_boneWeights_all[y][j][0] != 0:
+                    bpy.context.active_object.vertex_groups[physicalMeshes_boneIndices_all[y][j][0]].add([mesh2.data.vertices[j].index], physicalMeshes_boneWeights_all[y][j][0], 'REPLACE')
+                if physicalMeshes_boneWeights_all[y][j][1] != 0:
+                    bpy.context.active_object.vertex_groups[physicalMeshes_boneIndices_all[y][j][1]].add([mesh2.data.vertices[j].index], physicalMeshes_boneWeights_all[y][j][1], 'REPLACE')
+                if physicalMeshes_boneWeights_all[y][j][2] != 0:
+                    bpy.context.active_object.vertex_groups[physicalMeshes_boneIndices_all[y][j][2]].add([mesh2.data.vertices[j].index], physicalMeshes_boneWeights_all[y][j][2], 'REPLACE')
+                if physicalMeshes_boneWeights_all[y][j][3] != 0:
+                    bpy.context.active_object.vertex_groups[physicalMeshes_boneIndices_all[y][j][3]].add([mesh2.data.vertices[j].index], physicalMeshes_boneWeights_all[y][j][3], 'REPLACE')
+        
+        # Parenting Graphical Meshes
         for y in range(len(lod_mesh_names)):
             for i in range(len(lod_mesh_names[y])):
                 bpy.context.view_layer.objects.active = None
@@ -373,7 +662,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.context.view_layer.objects.active = bpy.data.objects[arma_name]
                 bpy.ops.object.parent_set(type="ARMATURE_NAME", xmirror=False, keep_transform=False)
 
-                # Weighting
+                # Weighting Graphical Meshes
                 bpy.context.view_layer.objects.active = None
                 bpy.context.view_layer.objects.active = bpy.data.objects[lod_mesh_names[y][i]]
                 mesh2 = bpy.data.objects[lod_mesh_names[y][i]]
