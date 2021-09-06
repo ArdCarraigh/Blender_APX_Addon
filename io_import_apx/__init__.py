@@ -30,6 +30,8 @@ def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_
     # Should work from all modes
     if bpy.context.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+    bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
     with open(filepath, 'r', encoding='utf-8') as file:
 
         # Get the type of .apx we have

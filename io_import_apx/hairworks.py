@@ -365,7 +365,8 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
             # Scale down if requested
             if scale_down == True:
                 bpy.context.active_object.scale = (0.01, 0.01, 0.01)
-                
+        
+        # Make the new collection inactive  
         if bpy.context.scene.collection.children.find("Collection") >= 0:    
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"]
         else:

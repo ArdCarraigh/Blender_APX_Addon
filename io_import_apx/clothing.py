@@ -590,6 +590,8 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
             if 'array name="bones"' in line:
                 skeleton = bpy.data.armatures.new(name="Armature")
                 object_data_add(context, skeleton)
+                boneIndexation = {}
+                boneMatrices = {}
                 # Edit mode required to add bones to the armature
                 bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                 break
@@ -608,6 +610,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
             if 'value name="name"' in line:
                 temp10 = line.split()
                 bone_name = temp10[2][14:len(temp10[2])-8]
+                boneIndexation[bone_index_internal] = bone_name
                 b = skeleton.edit_bones.new(bone_name)
                 
                 matrix = Matrix((Vector((float(bind_pose[0]), float(bind_pose[1]), float(bind_pose[2]), 0)),
@@ -617,19 +620,55 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                                     ))
                                     
                 matrix.transpose()
+                boneMatrices[bone_name] = matrix
                 b.head = Vector((matrix.col[3][0:3]))
                 b.tail = Vector((matrix.col[1][0:3])) + b.head
                 #b.roll = ??
-
-
+            if '/array' in line:
+                break
+            
         # Back to object mode
         bpy.ops.object.mode_set(mode='OBJECT')
-
+        
         # Rotation of the armature
         if rotate_180 == True:
             bpy.context.active_object.rotation_euler[2] = math.radians(180)
 
         arma_name = bpy.context.active_object.name
+        
+        # Collision Spheres
+        for line in file:
+            if 'array name="boneSpheres"' in line:
+                collisionSpheres = []
+                break
+        for line in file:
+            if '/array' in line:
+                list_coma = []
+                n = 0
+                for j in range(len(collisionSpheres)):
+                    if "," in collisionSpheres[j]:
+                        list_coma.append(j)
+                for k in list_coma:
+                    collisionSpheres.insert(k + n + 1, collisionSpheres[k + n][collisionSpheres[k + n].find(",") + 1:len(collisionSpheres[k + n])])
+                    collisionSpheres[k + n] = collisionSpheres[k + n][:collisionSpheres[k + n].find(",")]
+                    n += 1
+                collisionSpheres2 = list(filter(None, collisionSpheres))
+                break
+            temp25 = line.split()
+            for i in temp25:
+                collisionSpheres.append(i)
+                
+        # Collision Spheres Connections
+        for line in file:
+            if 'array name="boneSphereConnections"' in line:
+                collisionSpheresConnections = []
+                break
+        for line in file:
+            if '/array' in line:
+                break
+            temp26 = line.split()
+            for i in temp26:
+                collisionSpheresConnections.append(i)
 
         # Parenting Physical Meshes
         for y in range(len(physicalMeshes_names)):
@@ -703,3 +742,73 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                 bpy.ops.mesh.remove_doubles()
                 bpy.ops.object.mode_set(mode='OBJECT')
+                
+        # Set up the ragdoll definitons
+        collisionSpheres_index = []
+        collisionSpheres_radius = []
+        collisionSpheres_coordinates = []
+        for i in range (0, len(collisionSpheres2), 5):
+            collisionSpheres_index.append(collisionSpheres2[i])
+            collisionSpheres_radius.append(float(collisionSpheres2[i+1]))
+            collisionSpheres_coordinates.append([float(collisionSpheres2[i+2]), float(collisionSpheres2[i+3]), float(collisionSpheres2[i+4])])
+            
+        collisionSpheresConnections2 = []
+        for i in range(0, len(collisionSpheresConnections), 2):
+            collisionSpheresConnections2.append([collisionSpheresConnections[i], collisionSpheresConnections[i+1]])
+        
+        # Create a collection for collision spheres
+        sphere_coll = bpy.data.collections.new("Collision Spheres")
+        sphere_coll_name = sphere_coll.name
+        #Will throw an error message if not found, but won't stop the script from doing its job
+        if bpy.context.scene.collection.children.find("Collection") >= 0:
+            bpy.context.scene.collection.children['Collection'].children.link(sphere_coll)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_name]
+        else:
+            bpy.context.scene.collection.children.link(sphere_coll)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_name]
+            
+        # Add the spheres to the scene
+        collisionSpheres_coordinates_world = []
+        for i in range(len(collisionSpheres_index)):
+            sphereName = boneIndexation[collisionSpheres_index[i]]
+            boneMatrix = boneMatrices[sphereName]
+            coordinates_world =  boneMatrix @ Vector((collisionSpheres_coordinates[i]))
+            collisionSpheres_coordinates_world.append(coordinates_world)
+            bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionSpheres_radius[i], location = coordinates_world)
+            bpy.context.active_object.name = sphereName
+            bpy.context.active_object.display_type = 'WIRE'
+            # Rotation of the spheres
+            bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+            if rotate_180 == True:
+                bpy.context.active_object.rotation_euler[2] = math.radians(180)
+                
+        # Create a collection for collision spheres connections
+        sphere_coll_connec = bpy.data.collections.new("Collision Spheres Connections")
+        sphere_coll_connec_name = sphere_coll_connec.name
+        #Will throw an error message if not found, but won't stop the script from doing its job
+        if bpy.context.scene.collection.children.find("Collection") >= 0:
+            bpy.context.scene.collection.children['Collection'].children.link(sphere_coll_connec)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_connec_name]
+        else:
+            bpy.context.scene.collection.children.link(sphere_coll_connec)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_connec_name]
+            
+        # Add the connections to the scene
+        for i in collisionSpheresConnections2:
+            verticesConnection = [collisionSpheres_coordinates_world[int(i[0])], collisionSpheres_coordinates_world[int(i[1])]]
+            edgesConnection = [[0,1]]
+            facesConnection = []
+            meshConnection = bpy.data.meshes.new(name = boneIndexation[collisionSpheres_index[int(i[0])]] + "_to_" + boneIndexation[collisionSpheres_index[int(i[1])]])
+            meshConnection.from_pydata(verticesConnection, edgesConnection, facesConnection)
+            object_data_add(context, meshConnection)
+            bpy.context.active_object.display_type = 'WIRE'
+            # Rotation of the connections
+            bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+            if rotate_180 == True:
+                bpy.context.active_object.rotation_euler[2] = math.radians(180)
+            
+        # Make the new collections inactive
+        if bpy.context.scene.collection.children.find("Collection") >= 0:    
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"]
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
