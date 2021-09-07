@@ -2,6 +2,7 @@
 # clothing.py
 
 import bpy
+import bmesh
 import math
 import random
 from bpy_extras.object_utils import object_data_add
@@ -624,8 +625,11 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                                     
                 matrix.transpose()
                 boneMatrices[bone_name] = matrix
-                b.head = Vector((matrix.col[3][0:3]))
-                b.tail = Vector((matrix.col[1][0:3])) + b.head
+                b.head = Vector((0,0,0))
+                b.tail = Vector((0,1,0))
+                b.transform(matrix, roll = True, scale = False)
+                #b.head = Vector((matrix.col[3][0:3]))
+                #b.tail = Vector((matrix.col[1][0:3])) + b.head
                 #b.roll = ??
             if '/array' in line:
                 break
@@ -883,7 +887,79 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 coordinates_world =  boneMatrix @ collisionCapsules_matrix[i]
                 coordinates_world2 = coordinates_world.col[3][0:3]
                 collisionCapsules_coordinates_world.append(coordinates_world2)
-                bpy.ops.mesh.primitive_cylinder_add(radius = collisionCapsules_radius[i], depth = collisionCapsules_height[i], location = coordinates_world2)
+                
+                # Create both extremities
+                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionCapsules_radius[i], location = Vector([0,0, collisionCapsules_height[i]/2]), segments=24, ring_count=16)
+                sphereName1 = bpy.context.active_object.name
+                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionCapsules_radius[i], location = Vector([0,0, -collisionCapsules_height[i]/2]), segments=24, ring_count=16)
+                sphereName2 = bpy.context.active_object.name
+                bpy.context.view_layer.objects.active = None
+                bpy.context.view_layer.objects.active = bpy.data.objects[sphereName1]
+                bpy.context.active_object.select_set(state=True)
+                bpy.context.view_layer.objects.active = bpy.data.objects[sphereName2]
+                bpy.ops.object.join()
+                sphereName3 = bpy.context.active_object.name
+                
+                # Make the cylinder in between
+                verticesCapsulesCenters = [Vector([0,0, collisionCapsules_height[i]/2]), Vector([0,0, -collisionCapsules_height[i]/2])]
+                # create the Curve Datablock
+                curveData = bpy.data.curves.new(name = "placeholder", type='CURVE')
+                curveData.dimensions = '3D'
+                curveData.resolution_u = 2
+                curveData.bevel_depth = 1.0
+                curveData.bevel_resolution = 10
+                edge_vertices = 4 + (10*2)
+            
+                # map coords to spline
+                polyline = curveData.splines.new('POLY')
+                polyline.points.add(len(verticesCapsulesCenters)-1)
+                for j, coord in enumerate(verticesCapsulesCenters):
+                    x,y,z = coord
+                    polyline.points[j].co = (x, y, z, 1)
+                    
+                # Add the curves to the scene
+                object_data_add(context, curveData)
+            
+                # Scale the edge loops to the spheres' radius
+                bpy.ops.object.convert(target = 'MESH')
+                mesh4 = bpy.context.active_object
+                for j in range(edge_vertices):
+                    mesh4.data.vertices[j].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.transform.resize(value = (collisionCapsules_radius[i], collisionCapsules_radius[i], collisionCapsules_radius[i]))
+                bpy.ops.mesh.select_all(action="DESELECT")
+                bpy.ops.object.mode_set(mode='OBJECT')
+                for j in range(edge_vertices, edge_vertices * 2):
+                    mesh4.data.vertices[j].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.transform.resize(value = (collisionCapsules_radius[i], collisionCapsules_radius[i], collisionCapsules_radius[i]))      
+                bpy.ops.mesh.select_all(action="DESELECT")
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.context.view_layer.objects.active = None
+                bpy.context.view_layer.objects.active = bpy.data.objects[sphereName2]
+                bpy.context.active_object.select_set(state=True)
+                bpy.context.view_layer.objects.active = bpy.data.objects[sphereName3]
+                bpy.ops.object.join()
+                for j in range(len(bpy.context.active_object.data.vertices)):
+                    bpy.context.active_object.data.vertices.data.vertices[j].select = True
+                bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                bpy.ops.mesh.remove_doubles()
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # Place it
+                T = Matrix(((coordinates_world.col[0][0:3]),(coordinates_world.col[1][0:3]),(coordinates_world.col[2][0:3])))
+                me = bpy.context.active_object.data
+                bm = bmesh.new()
+                bm.from_mesh(me)
+                bmesh.ops.rotate(bm, cent = (0,0,0), matrix = T, verts = bm.verts, use_shapekey = True)
+                #bmesh.ops.transform(bm, matrix = coordinates_world, space = Matrix(), verts = bm.verts, use_shapekey = True)
+                bm.to_mesh(me)
+                bm.free()
+                bpy.ops.transform.translate(value=(coordinates_world2))
+                #T2 = T.to_euler()
+                #bpy.context.active_object.rotation_euler = T2
+                #bpy.ops.transform.rotate(value = T2[0])
+                
                 if capsuleName + "_1" in capsules_name:
                     num += 1
                 else:
@@ -917,7 +993,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 boneMatrix = boneMatrices[sphereName]
                 coordinates_world =  boneMatrix @ Vector((collisionSpheres_coordinates[i]))
                 collisionSpheres_coordinates_world.append(coordinates_world)
-                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionSpheres_radius[i], location = coordinates_world)
+                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionSpheres_radius[i], location = coordinates_world, segments=24, ring_count=16)
                 if sphereName + "_1" in spheres_name:
                     num += 1
                 else:
@@ -951,8 +1027,8 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 curveData.dimensions = '3D'
                 curveData.resolution_u = 2
                 curveData.bevel_depth = 1.0
-                curveData.bevel_resolution = 5
-                edge_vertices = 4 + (5*2)
+                curveData.bevel_resolution = 10
+                edge_vertices = 4 + (10*2)
             
                 # map coords to spline
                 polyline = curveData.splines.new('POLY')
