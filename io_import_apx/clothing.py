@@ -9,7 +9,7 @@ from mathutils import Vector, Matrix
 from io_import_apx import number_to_words
 from io_import_apx.number_to_words import process, getWords
 
-def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature):
+def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature, rm_ph_me):
 
     with open(filepath, 'r', encoding='utf-8') as file:
         
@@ -160,7 +160,10 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
             # Prepare Clothing Paints
             clothingPaints = []
             for i in range(0, len(constrainCoefficients2), 3):
-                clothingPaints.append([(float(constrainCoefficients2[i])/float(maximumMaxDistance)), float(constrainCoefficients2[i+1]), float(constrainCoefficients2[i+2])])
+                if float(maximumMaxDistance) > 0:
+                    clothingPaints.append([(float(constrainCoefficients2[i])/float(maximumMaxDistance)), float(constrainCoefficients2[i+1]), float(constrainCoefficients2[i+2])])
+                else:
+                    clothingPaints.append([(float(constrainCoefficients2[i])), float(constrainCoefficients2[i+1]), float(constrainCoefficients2[i+2])])
                 
             maximumDistance = []
             backstopRadius = []
@@ -636,10 +639,44 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
 
         arma_name = bpy.context.active_object.name
         
+        COLLISION_CAPSULES = False
+        COLLISION_SPHERES = False
+        COLLISION_SPHERES_CONNECTIONS = False
+        
+        # Collision Capsules # And something with Convex Vertices??
+        for line in file:
+            if 'array name="boneActors"' in line:
+                collisionCapsules = []
+                temp29 = line.split()
+                capsules_count = temp29[2][6:-1]
+                if int(capsules_count) >= 1:
+                    COLLISION_CAPSULES = True
+                break
+        for line in file:
+            if '/array' in line:
+                list_coma = []
+                n = 0
+                for j in range(len(collisionCapsules)):
+                    if "," in collisionCapsules[j]:
+                        list_coma.append(j)
+                for k in list_coma:
+                    collisionCapsules.insert(k + n + 1, collisionCapsules[k + n][collisionCapsules[k + n].find(",") + 1:len(collisionCapsules[k + n])])
+                    collisionCapsules[k + n] = collisionCapsules[k + n][:collisionCapsules[k + n].find(",")]
+                    n += 1
+                collisionCapsules2 = list(filter(None, collisionCapsules))
+                break
+            temp30 = line.split()
+            for i in temp30:
+                collisionCapsules.append(i)
+        
         # Collision Spheres
         for line in file:
             if 'array name="boneSpheres"' in line:
                 collisionSpheres = []
+                temp27 = line.split()
+                spheres_count = temp27[2][6:-1]
+                if int(spheres_count) >= 1:
+                    COLLISION_SPHERES = True
                 break
         for line in file:
             if '/array' in line:
@@ -662,6 +699,10 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
         for line in file:
             if 'array name="boneSphereConnections"' in line:
                 collisionSpheresConnections = []
+                temp28 = line.split()
+                spheres_connections_count = temp28[2][6:-1]
+                if int(spheres_connections_count) >= 1:
+                    COLLISION_SPHERES_CONNECTIONS = True
                 break
         for line in file:
             if '/array' in line:
@@ -729,6 +770,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                     temp_mat.diffuse_color = (random.random(), random.random(), random.random(), 1)
 
         # Join submeshes under the same LOD
+        finalMeshes_names = []
         for y in range(len(lod_mesh_names)):
             bpy.context.view_layer.objects.active = None
             bpy.ops.object.select_all(False)
@@ -736,6 +778,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.context.view_layer.objects.active = bpy.data.objects[lod_mesh_names[y][i]]
                 bpy.context.active_object.select_set(state=True)
             bpy.ops.object.join()
+            finalMeshes_names.append(bpy.context.active_object.name)
 
             # Remove doubles if requested
             if rm_db == True:
@@ -743,69 +786,205 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.mesh.remove_doubles()
                 bpy.ops.object.mode_set(mode='OBJECT')
                 
-        # Set up the ragdoll definitons
-        collisionSpheres_index = []
-        collisionSpheres_radius = []
-        collisionSpheres_coordinates = []
-        for i in range (0, len(collisionSpheres2), 5):
-            collisionSpheres_index.append(collisionSpheres2[i])
-            collisionSpheres_radius.append(float(collisionSpheres2[i+1]))
-            collisionSpheres_coordinates.append([float(collisionSpheres2[i+2]), float(collisionSpheres2[i+3]), float(collisionSpheres2[i+4])])
+        # Copy vertex color data to Graphical Meshes
+        for i in range(len(finalMeshes_names)):
+            me = bpy.data.objects[finalMeshes_names[i]].data
+            me.vertex_colors.new(name="MaximumDistance")
+            me.vertex_colors.new(name="BackstopRadius")
+            me.vertex_colors.new(name="BackstopDistance")
+            for face in me.polygons:
+                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                        me.vertex_colors["MaximumDistance"].data[loop_idx].color = [0,1,0,1]
+                        me.vertex_colors["BackstopRadius"].data[loop_idx].color = [0,1,0,1]
+                        me.vertex_colors["BackstopDistance"].data[loop_idx].color = [0,1,0,1]
+            bpy.context.view_layer.objects.active = None
+            bpy.ops.object.select_all(False)
+            bpy.context.view_layer.objects.active = bpy.data.objects[finalMeshes_names[i]]
+            bpy.context.active_object.select_set(state=True)
+            bpy.context.view_layer.objects.active = bpy.data.objects[physicalMeshes_names[i]]
+            bpy.ops.object.data_transfer(data_type = "VCOL", vert_mapping='TOPOLOGY',layers_select_src='ALL', layers_select_dst='NAME', mix_mode='REPLACE', use_max_distance=True, max_distance=0.000001)
             
-        collisionSpheresConnections2 = []
-        for i in range(0, len(collisionSpheresConnections), 2):
-            collisionSpheresConnections2.append([collisionSpheresConnections[i], collisionSpheresConnections[i+1]])
+        # Interpret Drive/Latch
+        for i in range(len(finalMeshes_names)):
+            me = bpy.data.objects[finalMeshes_names[i]].data
+            me.vertex_colors.new(name="Drive")
+            me.vertex_colors.new(name="Latch")
+            for face in me.polygons:
+                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                    if me.vertex_colors["MaximumDistance"].data[loop_idx].color[1] > me.vertex_colors["MaximumDistance"].data[loop_idx].color[0]:
+                        me.vertex_colors["Latch"].data[loop_idx].color = [1,1,1,1]
+                        me.vertex_colors["Drive"].data[loop_idx].color = [1,0,1,1]
+                    else:
+                        me.vertex_colors["Drive"].data[loop_idx].color = [1,1,1,1]
+                        me.vertex_colors["Latch"].data[loop_idx].color = [1,0,1,1]               
+                        
+        # Delete physical meshes if requested
+        if rm_ph_me == True:
+            for i in range(len(physicalMeshes_names)):
+                bpy.context.view_layer.objects.active = None
+                bpy.ops.object.select_all(False)
+                bpy.context.view_layer.objects.active = bpy.data.objects[physicalMeshes_names[i]]
+                bpy.context.active_object.select_set(state=True)
+                bpy.ops.object.delete()
+                bpy.context.view_layer.objects.active = None
+                bpy.ops.object.select_all(False)
+                
+        # Set up the ragdoll definitons
+        if COLLISION_CAPSULES == True:
+            collisionCapsules_index = []
+            collisionCapsules_radius = []
+            collisionCapsules_height = []
+            collisionCapsules_matrix = []
+            for i in range(0,len(collisionCapsules2), 17):
+                collisionCapsules_index.append(collisionCapsules2[i])
+                collisionCapsules_radius.append(float(collisionCapsules2[i+3]))
+                collisionCapsules_height.append(float(collisionCapsules2[i+4]))
+                matrix_capsule = Matrix((Vector((float(collisionCapsules2[i+5]), float(collisionCapsules2[i+6]), float(collisionCapsules2[i+7]), 0)),
+                                        Vector((float(collisionCapsules2[i+8]), float(collisionCapsules2[i+9]), float(collisionCapsules2[i+10]), 0)),
+                                        Vector((float(collisionCapsules2[i+11]), float(collisionCapsules2[i+12]), float(collisionCapsules2[i+13]), 0)),
+                                        Vector((float(collisionCapsules2[i+14]), float(collisionCapsules2[i+15]), float(collisionCapsules2[i+16]), 1))
+                                        ))
+                matrix_capsule.transpose()
+                collisionCapsules_matrix.append(matrix_capsule)
+                
+        if COLLISION_SPHERES == True:
+            collisionSpheres_index = []
+            collisionSpheres_radius = []
+            collisionSpheres_coordinates = []
+            for i in range (0, len(collisionSpheres2), 5):
+                collisionSpheres_index.append(collisionSpheres2[i])
+                collisionSpheres_radius.append(float(collisionSpheres2[i+1]))
+                collisionSpheres_coordinates.append([float(collisionSpheres2[i+2]), float(collisionSpheres2[i+3]), float(collisionSpheres2[i+4])])
+        
+        if COLLISION_SPHERES_CONNECTIONS == True:
+            collisionSpheresConnections2 = []
+            for i in range(0, len(collisionSpheresConnections), 2):
+                collisionSpheresConnections2.append([collisionSpheresConnections[i], collisionSpheresConnections[i+1]])
+                
+        # Create a collection for collision capsules
+        if COLLISION_CAPSULES == True:
+            capsule_coll = bpy.data.collections.new("Collision Capsules")
+            capsule_coll_name = capsule_coll.name
+            #Will throw an error message if not found, but won't stop the script from doing its job
+            if bpy.context.scene.collection.children.find("Collection") >= 0:
+                bpy.context.scene.collection.children['Collection'].children.link(capsule_coll)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[capsule_coll_name]
+            else:
+                bpy.context.scene.collection.children.link(capsule_coll)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[capsule_coll_name]
+                
+            # Add the capsules to the scene
+            collisionCapsules_coordinates_world = []
+            capsules_name = []
+            num = 1
+            for i in range(len(collisionCapsules_index)):
+                capsuleName = boneIndexation[collisionCapsules_index[i]]
+                boneMatrix = boneMatrices[capsuleName]
+                coordinates_world =  boneMatrix @ collisionCapsules_matrix[i]
+                coordinates_world2 = coordinates_world.col[3][0:3]
+                collisionCapsules_coordinates_world.append(coordinates_world2)
+                bpy.ops.mesh.primitive_cylinder_add(radius = collisionCapsules_radius[i], depth = collisionCapsules_height[i], location = coordinates_world2)
+                if capsuleName + "_1" in capsules_name:
+                    num += 1
+                else:
+                    num = 1
+                bpy.context.active_object.name = capsuleName + "_" + str(num)
+                capsules_name.append(bpy.context.active_object.name)
+                bpy.context.active_object.display_type = 'WIRE'
+                # Rotation of the capsules
+                bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                if rotate_180 == True:
+                    bpy.context.active_object.rotation_euler[2] = math.radians(180)
         
         # Create a collection for collision spheres
-        sphere_coll = bpy.data.collections.new("Collision Spheres")
-        sphere_coll_name = sphere_coll.name
-        #Will throw an error message if not found, but won't stop the script from doing its job
-        if bpy.context.scene.collection.children.find("Collection") >= 0:
-            bpy.context.scene.collection.children['Collection'].children.link(sphere_coll)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_name]
-        else:
-            bpy.context.scene.collection.children.link(sphere_coll)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_name]
+        if COLLISION_SPHERES == True:
+            sphere_coll = bpy.data.collections.new("Collision Spheres")
+            sphere_coll_name = sphere_coll.name
+            #Will throw an error message if not found, but won't stop the script from doing its job
+            if bpy.context.scene.collection.children.find("Collection") >= 0:
+                bpy.context.scene.collection.children['Collection'].children.link(sphere_coll)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_name]
+            else:
+                bpy.context.scene.collection.children.link(sphere_coll)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_name]
             
-        # Add the spheres to the scene
-        collisionSpheres_coordinates_world = []
-        for i in range(len(collisionSpheres_index)):
-            sphereName = boneIndexation[collisionSpheres_index[i]]
-            boneMatrix = boneMatrices[sphereName]
-            coordinates_world =  boneMatrix @ Vector((collisionSpheres_coordinates[i]))
-            collisionSpheres_coordinates_world.append(coordinates_world)
-            bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionSpheres_radius[i], location = coordinates_world)
-            bpy.context.active_object.name = sphereName
-            bpy.context.active_object.display_type = 'WIRE'
-            # Rotation of the spheres
-            bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-            if rotate_180 == True:
-                bpy.context.active_object.rotation_euler[2] = math.radians(180)
+            # Add the spheres to the scene
+            collisionSpheres_coordinates_world = []
+            spheres_name = []
+            num = 1
+            for i in range(len(collisionSpheres_index)):
+                sphereName = boneIndexation[collisionSpheres_index[i]]
+                boneMatrix = boneMatrices[sphereName]
+                coordinates_world =  boneMatrix @ Vector((collisionSpheres_coordinates[i]))
+                collisionSpheres_coordinates_world.append(coordinates_world)
+                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionSpheres_radius[i], location = coordinates_world)
+                if sphereName + "_1" in spheres_name:
+                    num += 1
+                else:
+                    num = 1
+                bpy.context.active_object.name = sphereName + "_" + str(num)
+                spheres_name.append(bpy.context.active_object.name)
+                bpy.context.active_object.display_type = 'WIRE'
+                # Rotation of the spheres
+                bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                if rotate_180 == True:
+                    bpy.context.active_object.rotation_euler[2] = math.radians(180)
                 
         # Create a collection for collision spheres connections
-        sphere_coll_connec = bpy.data.collections.new("Collision Spheres Connections")
-        sphere_coll_connec_name = sphere_coll_connec.name
-        #Will throw an error message if not found, but won't stop the script from doing its job
-        if bpy.context.scene.collection.children.find("Collection") >= 0:
-            bpy.context.scene.collection.children['Collection'].children.link(sphere_coll_connec)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_connec_name]
-        else:
-            bpy.context.scene.collection.children.link(sphere_coll_connec)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_connec_name]
+        if COLLISION_SPHERES_CONNECTIONS == True:
+            sphere_coll_connec = bpy.data.collections.new("Collision Spheres Connections")
+            sphere_coll_connec_name = sphere_coll_connec.name
+            #Will throw an error message if not found, but won't stop the script from doing its job
+            if bpy.context.scene.collection.children.find("Collection") >= 0:
+                bpy.context.scene.collection.children['Collection'].children.link(sphere_coll_connec)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_connec_name]
+            else:
+                bpy.context.scene.collection.children.link(sphere_coll_connec)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_connec_name]
             
-        # Add the connections to the scene
-        for i in collisionSpheresConnections2:
-            verticesConnection = [collisionSpheres_coordinates_world[int(i[0])], collisionSpheres_coordinates_world[int(i[1])]]
-            edgesConnection = [[0,1]]
-            facesConnection = []
-            meshConnection = bpy.data.meshes.new(name = boneIndexation[collisionSpheres_index[int(i[0])]] + "_to_" + boneIndexation[collisionSpheres_index[int(i[1])]])
-            meshConnection.from_pydata(verticesConnection, edgesConnection, facesConnection)
-            object_data_add(context, meshConnection)
-            bpy.context.active_object.display_type = 'WIRE'
-            # Rotation of the connections
-            bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-            if rotate_180 == True:
-                bpy.context.active_object.rotation_euler[2] = math.radians(180)
+            # Add the connections to the scene
+            for i in collisionSpheresConnections2:
+                verticesConnection = [collisionSpheres_coordinates_world[int(i[0])], collisionSpheres_coordinates_world[int(i[1])]]
+                meshConnection_name = spheres_name[int(i[0])] + "_to_" + spheres_name[int(i[1])]
+                # create the Curve Datablock
+                curveData = bpy.data.curves.new(meshConnection_name, type='CURVE')
+                curveData.dimensions = '3D'
+                curveData.resolution_u = 2
+                curveData.bevel_depth = 1.0
+                curveData.bevel_resolution = 5
+                edge_vertices = 4 + (5*2)
+            
+                # map coords to spline
+                polyline = curveData.splines.new('POLY')
+                polyline.points.add(len(verticesConnection)-1)
+                for j, coord in enumerate(verticesConnection):
+                    x,y,z = coord
+                    polyline.points[j].co = (x, y, z, 1)
+                    
+                # Add the curves to the scene
+                object_data_add(context, curveData)
+            
+                # Scale the edge loops to the spheres' radius
+                bpy.ops.object.convert(target = 'MESH')
+                mesh3 = bpy.context.active_object
+                for j in range(edge_vertices):
+                    mesh3.data.vertices[j].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.transform.resize(value = (collisionSpheres_radius[int(i[0])], collisionSpheres_radius[int(i[0])], collisionSpheres_radius[int(i[0])]))
+                bpy.ops.mesh.select_all(action="DESELECT")
+                bpy.ops.object.mode_set(mode='OBJECT')
+                for j in range(edge_vertices, edge_vertices * 2):
+                    mesh3.data.vertices[j].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.transform.resize(value = (collisionSpheres_radius[int(i[1])], collisionSpheres_radius[int(i[1])], collisionSpheres_radius[int(i[1])]))      
+                bpy.ops.mesh.select_all(action="DESELECT")
+                bpy.ops.object.mode_set(mode='OBJECT')
+    
+                bpy.context.active_object.display_type = 'WIRE'
+                # Rotation of the connections
+                bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                if rotate_180 == True:
+                    bpy.context.active_object.rotation_euler[2] = math.radians(180)
             
         # Make the new collections inactive
         if bpy.context.scene.collection.children.find("Collection") >= 0:    

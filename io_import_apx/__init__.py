@@ -24,7 +24,7 @@ from io_import_apx.clothing import read_clothing
 from io_import_apx.hairworks import read_hairworks
 
 
-def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_armature):
+def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_armature, rm_ph_me):
     print("running read_apx...")
     
     # Should work from all modes
@@ -45,7 +45,7 @@ def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_
 
     # If PhysX Clothing type
     if type == 'cloth':
-        read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature)
+        read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature, rm_ph_me)
 
     # If Hairworks type
     if type == 'hair':
@@ -76,13 +76,13 @@ class ImportApx(Operator, ImportHelper):
     
     rm_db: BoolProperty(
         name="Remove Doubles",
-        description="Remove doubles of the imported meshes",
+        description="Remove double vertices of the imported meshes",
         default=True,
     )
     
     use_mat: BoolProperty(
         name="Prevent Material Duplication",
-        description="Use existing materials from the scene if their name is identical to the one of your mesh",
+        description="Use existing materials from the scene if their name is identical to the ones of your mesh",
         default=True,
     )
     
@@ -103,6 +103,12 @@ class ImportApx(Operator, ImportHelper):
         description="Limit the bone importation to those used to weight the meshes",
         default=False
     )
+    
+    rm_ph_me: BoolProperty(
+        name="Remove Physical Meshes",
+        description="Remove the physical meshes after transfer of vertex colors to graphical meshes",
+        default=True
+    )
 
     def draw(self, context):
         layout = self.layout
@@ -111,7 +117,7 @@ class ImportApx(Operator, ImportHelper):
         
         section_options = {
             "General" : ["rotate_180", "minimal_armature"], 
-            "Clothing" : ["rm_db", "use_mat"], 
+            "Clothing" : ["rm_db", "use_mat", "rm_ph_me"], 
             "Hairworks" : ["scale_down"]
         }
         
@@ -127,7 +133,7 @@ class ImportApx(Operator, ImportHelper):
                 box.prop(self, prop)
                 
     def execute(self, context):
-        return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.minimal_armature)
+        return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.minimal_armature, self.rm_ph_me)
 
 
 # Only needed if you want to add into a dynamic menu
