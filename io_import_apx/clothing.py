@@ -981,11 +981,11 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 #bpy.context.active_object.matrix_world = coordinates_world
                 
                 
-                if capsuleName + "_1" in capsules_name:
+                if "capsule_" + capsuleName + "_1" in capsules_name:
                     num += 1
                 else:
                     num = 1
-                bpy.context.active_object.name = capsuleName + "_" + str(num)
+                bpy.context.active_object.name = "capsule_" + capsuleName + "_" + str(num)
                 capsules_name.append(bpy.context.active_object.name)
                 bpy.context.active_object.display_type = 'WIRE'
                 # Rotation of the capsules
@@ -1015,11 +1015,11 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 coordinates_world =  boneMatrix @ Vector((collisionSpheres_coordinates[i]))
                 collisionSpheres_coordinates_world.append(coordinates_world)
                 bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionSpheres_radius[i], location = coordinates_world, segments=24, ring_count=16)
-                if sphereName + "_1" in spheres_name:
+                if "sphere_" + sphereName + "_1" in spheres_name:
                     num += 1
                 else:
                     num = 1
-                bpy.context.active_object.name = sphereName + "_" + str(num)
+                bpy.context.active_object.name = "sphere_" + sphereName + "_" + str(num)
                 spheres_name.append(bpy.context.active_object.name)
                 bpy.context.active_object.display_type = 'WIRE'
                 # Rotation of the spheres
