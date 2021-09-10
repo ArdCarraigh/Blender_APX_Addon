@@ -592,12 +592,9 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
         # Armature and Bones
         for line in file:
             if 'array name="bones"' in line:
-                skeleton = bpy.data.armatures.new(name="Armature")
-                object_data_add(context, skeleton)
+                armaNames = []
                 boneIndexation = {}
                 boneMatrices = {}
-                # Edit mode required to add bones to the armature
-                bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                 break
         for line in file:
             if 'value name="internalIndex"' in line:
@@ -612,9 +609,16 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bind_pose[0] = bind_pose[0][13:len(bind_pose[0])]
                 bind_pose[-1] = bind_pose[-1][:len(bind_pose[-1])-8]
             if 'value name="name"' in line:
+                bpy.context.view_layer.objects.active = None
+                bpy.ops.object.select_all(False)
                 temp10 = line.split()
                 bone_name = temp10[2][14:len(temp10[2])-8]
                 boneIndexation[bone_index_internal] = bone_name
+                skeleton = bpy.data.armatures.new(name="Armature")
+                object_data_add(context, skeleton)
+                armaNames.append(bpy.context.active_object.name)
+                # Edit mode required to add bones to the armature
+                bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                 b = skeleton.edit_bones.new(bone_name)
                 
                 matrix = Matrix((Vector((float(bind_pose[0]), float(bind_pose[1]), float(bind_pose[2]), 0)),
@@ -627,12 +631,17 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 boneMatrices[bone_name] = matrix
                 b.head = Vector((0,0,0))
                 b.tail = Vector((0,1,0))
-                b.transform(matrix, roll = True, scale = False)
-                #b.head = Vector((matrix.col[3][0:3]))
-                #b.tail = Vector((matrix.col[1][0:3])) + b.head
-                #b.roll = ??
+                #Transform the armature to have the correct transformation, edit_bone.transform() gives wrong results
+                bpy.ops.object.mode_set(mode='OBJECT')
+                skeleton.transform(matrix)
             if '/array' in line:
                 break
+            
+        # Join the armatures made for each bone together
+        for i in reversed(range(len(armaNames))):
+            bpy.context.view_layer.objects.active = bpy.data.objects[armaNames[i]]
+            bpy.context.active_object.select_set(state=True)
+        bpy.ops.object.join()
             
         # Back to object mode
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -884,14 +893,14 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
             for i in range(len(collisionCapsules_index)):
                 capsuleName = boneIndexation[collisionCapsules_index[i]]
                 boneMatrix = boneMatrices[capsuleName]
-                coordinates_world =  boneMatrix @ collisionCapsules_matrix[i]
+                coordinates_world = boneMatrix @ collisionCapsules_matrix[i]
                 coordinates_world2 = coordinates_world.col[3][0:3]
                 collisionCapsules_coordinates_world.append(coordinates_world2)
                 
                 # Create both extremities
-                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionCapsules_radius[i], location = Vector([0,0, collisionCapsules_height[i]/2]), segments=24, ring_count=16)
+                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionCapsules_radius[i], location = Vector([0,collisionCapsules_height[i]/2,0]), segments=24, ring_count=16, rotation = (math.radians(90), 0,0))
                 sphereName1 = bpy.context.active_object.name
-                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionCapsules_radius[i], location = Vector([0,0, -collisionCapsules_height[i]/2]), segments=24, ring_count=16)
+                bpy.ops.mesh.primitive_uv_sphere_add(radius = collisionCapsules_radius[i], location = Vector([0,-collisionCapsules_height[i]/2,0]), segments=24, ring_count=16, rotation = (math.radians(-90), 0,0))
                 sphereName2 = bpy.context.active_object.name
                 bpy.context.view_layer.objects.active = None
                 bpy.context.view_layer.objects.active = bpy.data.objects[sphereName1]
@@ -901,7 +910,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 sphereName3 = bpy.context.active_object.name
                 
                 # Make the cylinder in between
-                verticesCapsulesCenters = [Vector([0,0, collisionCapsules_height[i]/2]), Vector([0,0, -collisionCapsules_height[i]/2])]
+                verticesCapsulesCenters = [Vector([0,collisionCapsules_height[i]/2,0]), Vector([0,-collisionCapsules_height[i]/2,0])]
                 # create the Curve Datablock
                 curveData = bpy.data.curves.new(name = "placeholder", type='CURVE')
                 curveData.dimensions = '3D'
@@ -947,18 +956,30 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.mode_set(mode='OBJECT')
                 
                 # Place it
-                T = Matrix(((coordinates_world.col[0][0:3]),(coordinates_world.col[1][0:3]),(coordinates_world.col[2][0:3])))
-                me = bpy.context.active_object.data
-                bm = bmesh.new()
-                bm.from_mesh(me)
-                bmesh.ops.rotate(bm, cent = (0,0,0), matrix = T, verts = bm.verts, use_shapekey = True)
-                #bmesh.ops.transform(bm, matrix = coordinates_world, space = Matrix(), verts = bm.verts, use_shapekey = True)
-                bm.to_mesh(me)
-                bm.free()
+                #me = bpy.context.active_object.data
+                #bm = bmesh.new()
+                #bm.from_mesh(me)
+                #bmesh.ops.transform(bm, matrix = coordinates_world, verts = bm.verts)
+                #bmesh.ops.translate(bm, vec = coordinates_world2, verts = bm.verts)
+                #bmesh.ops.rotate(bm, matrix = coordinates_world.to_3x3(), verts = bm.verts, cent = coordinates_world.translation)
+                #bm.to_mesh(me)
+                #bm.free()
+                
+                T2 = coordinates_world.to_euler('XYZ')
                 bpy.ops.transform.translate(value=(coordinates_world2))
-                #T2 = T.to_euler()
+                bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                bpy.ops.transform.rotate(value = T2[0], orient_axis='X', constraint_axis=(True, False, False))
+                bpy.ops.transform.rotate(value = T2[1], orient_axis='Y', constraint_axis=(False, True, False))
+                bpy.ops.transform.rotate(value = T2[2], orient_axis='Z', constraint_axis=(False, False, True))
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                #T3 = coordinates_world.to_quaternion()
+                #bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
                 #bpy.context.active_object.rotation_euler = T2
-                #bpy.ops.transform.rotate(value = T2[0])
+                #bpy.context.active_object.rotation_quaternion = T3
+                
+                #bpy.context.active_object.matrix_world = coordinates_world
+                
                 
                 if capsuleName + "_1" in capsules_name:
                     num += 1
