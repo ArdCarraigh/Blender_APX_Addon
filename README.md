@@ -2,9 +2,9 @@
  Import .apx files into blender.
  Developed for Blender 2.92, other versions are not tested.
 
- Video demonstration:
+ Video demonstration of the Clothing APX import:
  
- [![APX Importer Video](https://yt-embed.herokuapp.com/embed?v=6rWYBpd8NaM)](https://www.youtube.com/watch?v=6rWYBpd8NaM)
+ [![APX Clothing Importer Video](https://yt-embed.herokuapp.com/embed?v=QH6N0Q8Ue74)](https://www.youtube.com/watch?v=QH6N0Q8Ue74)
  
  Made by Ard Carraigh
 
