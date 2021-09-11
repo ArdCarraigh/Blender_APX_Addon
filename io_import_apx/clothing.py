@@ -875,16 +875,12 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 collisionSpheresConnections2.append([collisionSpheresConnections[i], collisionSpheresConnections[i+1]])
                 
         # Create a collection for collision capsules
+        parent_coll = bpy.context.view_layer.active_layer_collection
         if COLLISION_CAPSULES == True:
             capsule_coll = bpy.data.collections.new("Collision Capsules")
             capsule_coll_name = capsule_coll.name
-            #Will throw an error message if not found, but won't stop the script from doing its job
-            if bpy.context.scene.collection.children.find("Collection") >= 0:
-                bpy.context.scene.collection.children['Collection'].children.link(capsule_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[capsule_coll_name]
-            else:
-                bpy.context.scene.collection.children.link(capsule_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[capsule_coll_name]
+            bpy.context.view_layer.active_layer_collection.collection.children.link(capsule_coll)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[capsule_coll_name]
                 
             # Add the capsules to the scene
             collisionCapsules_coordinates_world = []
@@ -992,18 +988,15 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
                 if rotate_180 == True:
                     bpy.context.active_object.rotation_euler[2] = math.radians(180)
+            
+            bpy.context.view_layer.active_layer_collection = parent_coll
         
         # Create a collection for collision spheres
         if COLLISION_SPHERES == True:
             sphere_coll = bpy.data.collections.new("Collision Spheres")
             sphere_coll_name = sphere_coll.name
-            #Will throw an error message if not found, but won't stop the script from doing its job
-            if bpy.context.scene.collection.children.find("Collection") >= 0:
-                bpy.context.scene.collection.children['Collection'].children.link(sphere_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_name]
-            else:
-                bpy.context.scene.collection.children.link(sphere_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_name]
+            bpy.context.view_layer.active_layer_collection.collection.children.link(sphere_coll)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[sphere_coll_name]
             
             # Add the spheres to the scene
             collisionSpheres_coordinates_world = []
@@ -1026,18 +1019,15 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
                 if rotate_180 == True:
                     bpy.context.active_object.rotation_euler[2] = math.radians(180)
+                    
+            bpy.context.view_layer.active_layer_collection = parent_coll
                 
         # Create a collection for collision spheres connections
         if COLLISION_SPHERES_CONNECTIONS == True:
             sphere_coll_connec = bpy.data.collections.new("Collision Spheres Connections")
             sphere_coll_connec_name = sphere_coll_connec.name
-            #Will throw an error message if not found, but won't stop the script from doing its job
-            if bpy.context.scene.collection.children.find("Collection") >= 0:
-                bpy.context.scene.collection.children['Collection'].children.link(sphere_coll_connec)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_connec_name]
-            else:
-                bpy.context.scene.collection.children.link(sphere_coll_connec)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_connec_name]
+            bpy.context.view_layer.active_layer_collection.collection.children.link(sphere_coll_connec)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[sphere_coll_connec_name]
             
             # Add the connections to the scene
             for i in collisionSpheresConnections2:
@@ -1082,9 +1072,5 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
                 if rotate_180 == True:
                     bpy.context.active_object.rotation_euler[2] = math.radians(180)
-            
-        # Make the new collections inactive
-        if bpy.context.scene.collection.children.find("Collection") >= 0:    
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"]
-        else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
+                    
+            bpy.context.view_layer.active_layer_collection = parent_coll

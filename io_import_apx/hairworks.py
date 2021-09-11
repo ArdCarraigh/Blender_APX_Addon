@@ -409,15 +409,11 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
                 bpy.context.active_object.vertex_groups[boneIndices2[j][3]].add([mesh2.data.vertices[j].index], boneWeights2[j][3], 'REPLACE')
                 
         # Create a new collection to store curves
+        parent_coll = bpy.context.view_layer.active_layer_collection
         curve_coll = bpy.data.collections.new("Curves")
         curve_coll_name = curve_coll.name
-        #Will throw an error message if not found, but won't stop the script from doing its job
-        if bpy.context.scene.collection.children.find("Collection") >= 0:
-            bpy.context.scene.collection.children['Collection'].children.link(curve_coll)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[curve_coll_name]
-        else:
-            bpy.context.scene.collection.children.link(curve_coll)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[curve_coll_name]
+        bpy.context.view_layer.active_layer_collection.collection.children.link(curve_coll)
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[curve_coll_name]
             
         # Create curves
         guides_vertices = []
@@ -453,6 +449,8 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
             # Scale down if requested
             if scale_down == True:
                 bpy.context.active_object.scale = (0.01, 0.01, 0.01)
+                
+        bpy.context.view_layer.active_layer_collection = parent_coll
         
         # Set up the ragdoll definitons        
         if COLLISION_SPHERES == True:
@@ -482,13 +480,8 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
         if COLLISION_SPHERES == True:
             sphere_coll = bpy.data.collections.new("Collision Spheres")
             sphere_coll_name = sphere_coll.name
-            #Will throw an error message if not found, but won't stop the script from doing its job
-            if bpy.context.scene.collection.children.find("Collection") >= 0:
-                bpy.context.scene.collection.children['Collection'].children.link(sphere_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_name]
-            else:
-                bpy.context.scene.collection.children.link(sphere_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_name]
+            bpy.context.view_layer.active_layer_collection.collection.children.link(sphere_coll)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[sphere_coll_name]
             
             # Add the spheres to the scene
             collisionSpheres_coordinates_world = []
@@ -515,17 +508,14 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
                 if scale_down == True:
                     bpy.context.active_object.scale = (0.01, 0.01, 0.01)
                     
+            bpy.context.view_layer.active_layer_collection = parent_coll
+                    
         # Create a collection for collision spheres connections
         if COLLISION_SPHERES_CONNECTIONS == True:
             sphere_coll_connec = bpy.data.collections.new("Collision Spheres Connections")
             sphere_coll_connec_name = sphere_coll_connec.name
-            #Will throw an error message if not found, but won't stop the script from doing its job
-            if bpy.context.scene.collection.children.find("Collection") >= 0:
-                bpy.context.scene.collection.children['Collection'].children.link(sphere_coll_connec)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[sphere_coll_connec_name]
-            else:
-                bpy.context.scene.collection.children.link(sphere_coll_connec)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[sphere_coll_connec_name]
+            bpy.context.view_layer.active_layer_collection.collection.children.link(sphere_coll_connec)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[sphere_coll_connec_name]
             
             # Add the connections to the scene
             for i in collisionSpheresConnections2:
@@ -574,17 +564,14 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
                 if scale_down == True:
                     bpy.context.active_object.scale = (0.01, 0.01, 0.01)
                     
+            bpy.context.view_layer.active_layer_collection = parent_coll
+                    
         # Create a collection for pin constraints
         if PIN_CONSTRAINTS == True:
             pin_coll = bpy.data.collections.new("Pin Constraints")
             pin_coll_name = pin_coll.name
-            #Will throw an error message if not found, but won't stop the script from doing its job
-            if bpy.context.scene.collection.children.find("Collection") >= 0:
-                bpy.context.scene.collection.children['Collection'].children.link(pin_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"].children[pin_coll_name]
-            else:
-                bpy.context.scene.collection.children.link(pin_coll)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[pin_coll_name]
+            bpy.context.view_layer.active_layer_collection.collection.children.link(pin_coll)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[pin_coll_name]
             
             # Add the pins to the scene
             pinConstraints_coordinates_world = []
@@ -610,9 +597,5 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
                 # Scale down if requested
                 if scale_down == True:
                     bpy.context.active_object.scale = (0.01, 0.01, 0.01)
-        
-        # Make the new collections inactive  
-        if bpy.context.scene.collection.children.find("Collection") >= 0:    
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children["Collection"]
-        else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
+                    
+            bpy.context.view_layer.active_layer_collection = parent_coll
