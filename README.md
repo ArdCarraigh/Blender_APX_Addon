@@ -1,4 +1,4 @@
-# Blender_APX_Importer
+# Blender_APX_Addon
  Import/export .apx files into/from blender.
  Developed for Blender 2.92, other versions are not tested.
 
