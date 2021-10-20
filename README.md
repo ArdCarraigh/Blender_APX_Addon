@@ -10,6 +10,6 @@
  
  [![APX Hairworks Exporter Importer Video](https://yt-embed.herokuapp.com/embed?v=Q2ByGES0_-s)](https://www.youtube.com/watch?v=Q2ByGES0_-s)
  
- Made by Ard Carraigh
-
+ Copyright (c) 2021 Ard Carraigh
+ 
  This project is licensed under the terms of the Creative Commons Attribution-NonCommercial 4.0 International Public License.
