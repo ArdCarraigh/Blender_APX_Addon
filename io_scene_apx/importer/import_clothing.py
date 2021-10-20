@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# clothing.py
+# importer/import_clothing.py
 
 import bpy
 import bmesh
@@ -7,8 +7,8 @@ import math
 import random
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector, Matrix
-from io_import_apx import number_to_words
-from io_import_apx.number_to_words import process, getWords
+from io_scene_apx import number_to_words
+from io_scene_apx.number_to_words import process, getWords
 
 def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature, rm_ph_me):
 
@@ -879,8 +879,8 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
         if COLLISION_CAPSULES == True:
             capsule_coll = bpy.data.collections.new("Collision Capsules")
             capsule_coll_name = capsule_coll.name
-            bpy.context.view_layer.active_layer_collection.collection.children.link(capsule_coll)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[capsule_coll_name]
+            parent_coll.collection.children.link(capsule_coll)
+            bpy.context.view_layer.active_layer_collection = parent_coll.children[capsule_coll_name]
                 
             # Add the capsules to the scene
             collisionCapsules_coordinates_world = []
@@ -988,15 +988,13 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
                 if rotate_180 == True:
                     bpy.context.active_object.rotation_euler[2] = math.radians(180)
-            
-            bpy.context.view_layer.active_layer_collection = parent_coll
         
         # Create a collection for collision spheres
         if COLLISION_SPHERES == True:
             sphere_coll = bpy.data.collections.new("Collision Spheres")
             sphere_coll_name = sphere_coll.name
-            bpy.context.view_layer.active_layer_collection.collection.children.link(sphere_coll)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[sphere_coll_name]
+            parent_coll.collection.children.link(sphere_coll)
+            bpy.context.view_layer.active_layer_collection = parent_coll.children[sphere_coll_name]
             
             # Add the spheres to the scene
             collisionSpheres_coordinates_world = []
@@ -1019,15 +1017,13 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
                 if rotate_180 == True:
                     bpy.context.active_object.rotation_euler[2] = math.radians(180)
-                    
-            bpy.context.view_layer.active_layer_collection = parent_coll
                 
         # Create a collection for collision spheres connections
         if COLLISION_SPHERES_CONNECTIONS == True:
             sphere_coll_connec = bpy.data.collections.new("Collision Spheres Connections")
             sphere_coll_connec_name = sphere_coll_connec.name
-            bpy.context.view_layer.active_layer_collection.collection.children.link(sphere_coll_connec)
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.active_layer_collection.children[sphere_coll_connec_name]
+            parent_coll.collection.children.link(sphere_coll_connec)
+            bpy.context.view_layer.active_layer_collection = parent_coll.children[sphere_coll_connec_name]
             
             # Add the connections to the scene
             for i in collisionSpheresConnections2:
@@ -1073,4 +1069,4 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 if rotate_180 == True:
                     bpy.context.active_object.rotation_euler[2] = math.radians(180)
                     
-            bpy.context.view_layer.active_layer_collection = parent_coll
+        bpy.context.view_layer.active_layer_collection = parent_coll
