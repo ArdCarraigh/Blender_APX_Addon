@@ -1,10 +1,14 @@
 # Blender_APX_Importer
- Import .apx files into blender.
+ Import/export .apx files into/from blender.
  Developed for Blender 2.92, other versions are not tested.
 
- Video demonstration of the Clothing APX import:
+ Clothing APX - Import:
  
  [![APX Clothing Importer Video](https://yt-embed.herokuapp.com/embed?v=QH6N0Q8Ue74)](https://www.youtube.com/watch?v=QH6N0Q8Ue74)
+ 
+ Hairworks APX - Export and Import:
+ 
+ [![APX Hairworks Exporter Importer Video](https://yt-embed.herokuapp.com/embed?v=Q2ByGES0_-s)](https://www.youtube.com/watch?v=Q2ByGES0_-s)
  
  Made by Ard Carraigh
 
