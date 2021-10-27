@@ -173,9 +173,9 @@ def write_hairworks(context, filepath, resample_value, spline):
         boneIndices.append(np.zeros(4, dtype=int))
         boneWeights.append(np.zeros(4, dtype=float))
         i = 0
-        for g in vertex.groups[:4]:
-            if i < 4:
-                boneIndices[-1][i] = g.group
+        for g in vertex.groups:
+            if i < 4 and g.weight > 0:
+                boneIndices[-1][i] = boneIndex[ctxt_object.vertex_groups[g.group].name]
                 boneWeights[-1][i] = g.weight
                 i += 1
     kwargs['boneIndices'] = ', '.join(' '.join(map(str, x)) for x in boneIndices)
