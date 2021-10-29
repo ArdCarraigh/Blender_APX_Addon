@@ -9,7 +9,15 @@ import numpy as np
 from math import sqrt
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector, Matrix
+import numpy as np
 
+def whichClosestCoords(vert_coord, array2D):
+    list2 = []
+    for i in range(len(array2D)):
+        list2.append(sqrt((array2D[i][0] - vert_coord[0])**2 + (array2D[i][1] - vert_coord[1])**2 + (array2D[i][2] - vert_coord[2])**2))
+    closestIndex = list2.index(min(list2))
+    return(closestIndex)
+    
 def shape_hair(context):
     growthMesh = bpy.context.active_object
     curves = bpy.context.view_layer.active_layer_collection.collection.objects
@@ -36,13 +44,19 @@ def shape_hair(context):
         bpy.context.tool_settings.particle_edit.display_step = int(round(sqrt(segmentsCount),0)) + 1 
         bpy.ops.particle.disconnect_hair()
         
+        curveBases = np.zeros(shape=(len(curves), 3))
         for i in range(len(curves)):
-            for j in range(0,len(curves[i].data.splines[0].points)):
+            curveBases[i] = curves[i].data.splines[0].points[0].co[0:3] 
+        
+        for i in range(len(growthMesh.data.vertices)):
+            closestCurveIndex = whichClosestCoords(growthMesh.data.vertices[i].co[0:3], curveBases)
+            diffBase = Vector((growthMesh.data.vertices[i].co[0:3])) - Vector((curves[closestCurveIndex].data.splines[0].points[0].co[0:3]))
+            for j in range(0,len(curves[closestCurveIndex].data.splines[0].points)):
                 growthMesh2.particle_systems[0].particles[i].hair_keys[j].co_object_set(
                     object = growthMesh2,
                     modifier = growthMesh2.modifiers[-1],
                     particle = growthMesh2.particle_systems[0].particles[i],
-                    co = curves[i].data.splines[0].points[j].co[0:3]
+                    co = Vector((curves[closestCurveIndex].data.splines[0].points[j].co[0:3])) + diffBase
                 )
                 
         bpy.ops.particle.connect_hair()
