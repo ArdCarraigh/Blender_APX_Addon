@@ -33,6 +33,8 @@ from io_scene_apx.tools import add_pin
 from io_scene_apx.tools.add_pin import add_pin
 from io_scene_apx.tools import shape_hair
 from io_scene_apx.tools.shape_hair import shape_hair
+from io_scene_apx.tools import create_curve
+from io_scene_apx.tools.create_curve import create_curve
 
 
 def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_armature, rm_ph_me):
@@ -296,7 +298,20 @@ class ShapeHair(Operator):
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
         shape_hair(context)
         return {'FINISHED'}
+    
+class CreateCurve(Operator):
+    """Create Curves from Hair"""
+    bl_idname = "physx.create_curve"
+    bl_label = "Create Curves from Hair"
+    bl_options = {'REGISTER', 'UNDO'}
 
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        create_curve(context)
+        return {'FINISHED'}
     
 class PhysXMenu(bpy.types.Menu):
     bl_label = "PhysX"
@@ -310,6 +325,7 @@ class PhysXMenu(bpy.types.Menu):
         layout.operator(AddSphereConnection.bl_idname, text = "Add Sphere Connection", icon='MESH_CAPSULE')
         layout.operator(AddPinSphere.bl_idname, text = "Add Pin Sphere (Hairworks)", icon='MESH_UVSPHERE')
         layout.operator(ShapeHair.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='HAIR')
+        layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair (Hairworks)", icon='CURVE_DATA')
 
 
 # Only needed if you want to add into a dynamic menu
@@ -334,6 +350,7 @@ def register():
     bpy.utils.register_class(AddSphereConnection)
     bpy.utils.register_class(AddPinSphere)
     bpy.utils.register_class(ShapeHair)
+    bpy.utils.register_class(CreateCurve)
     
     bpy.utils.register_class(PhysXMenu)
     bpy.types.VIEW3D_MT_object.append(draw_item)
@@ -348,6 +365,7 @@ def unregister():
     bpy.utils.unregister_class(AddSphereConnection)
     bpy.utils.unregister_class(AddPinSphere)
     bpy.utils.unregister_class(ShapeHair)
+    bpy.utils.unregister_class(CreateCurve)
     
     bpy.utils.unregister_class(PhysXMenu)
     bpy.types.VIEW3D_MT_object.remove(draw_item)

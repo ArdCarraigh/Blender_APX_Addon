@@ -49,7 +49,6 @@ def write_hairworks(context, filepath, resample_value, spline):
     curve_coll_temp_name = curve_coll_temp.name
     parent_coll.collection.children.link(curve_coll_temp)
     bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll_temp_name]
-    curve_coll_temp_active = bpy.context.view_layer.active_layer_collection
     
     # Create curves from guides
     hairs_temp = ctxt_object_temp.particle_systems[0].particles
