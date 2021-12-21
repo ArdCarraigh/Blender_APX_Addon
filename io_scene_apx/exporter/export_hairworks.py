@@ -57,7 +57,7 @@ def write_hairworks(context, filepath, resample_value, spline):
         curveData = bpy.data.curves.new('myCurve_temp', type='CURVE')
         curveData.dimensions = '3D'
         curveData.resolution_u = 2
-        curveData.bevel_depth = 0.01
+        curveData.bevel_depth = 0
         
         # map coords to spline
         polyline = curveData.splines.new('POLY')

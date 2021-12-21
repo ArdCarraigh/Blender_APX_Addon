@@ -110,7 +110,7 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
         curveData.dimensions = '3D'
         curveData.resolution_u = 2
-        curveData.bevel_depth = 0.01
+        curveData.bevel_depth = 0
         
         # map coords to spline
         polyline = curveData.splines.new('POLY')
