@@ -9,7 +9,6 @@ import numpy as np
 from math import sqrt
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector, Matrix
-import numpy as np
 
 def whichClosestCoords(vert_coord, array2D):
     list2 = []
@@ -51,7 +50,7 @@ def shape_hair(context):
         for i in range(len(growthMesh.data.vertices)):
             closestCurveIndex = whichClosestCoords(growthMesh.data.vertices[i].co[0:3], curveBases)
             diffBase = Vector((growthMesh.data.vertices[i].co[0:3])) - Vector((curves[closestCurveIndex].data.splines[0].points[0].co[0:3]))
-            for j in range(0,len(curves[closestCurveIndex].data.splines[0].points)):
+            for j in range(segmentsCount):
                 growthMesh2.particle_systems[0].particles[i].hair_keys[j].co_object_set(
                     object = growthMesh2,
                     modifier = growthMesh2.modifiers[-1],
