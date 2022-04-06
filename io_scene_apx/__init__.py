@@ -75,7 +75,7 @@ def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_
     return {'FINISHED'}
 
 class ImportApx(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
+    """Load a APX file"""
     bl_idname = "import.apx"  # important since its how bpy.ops.import.apx is constructed
     bl_label = "Import APX"
 
@@ -168,7 +168,7 @@ def write_apx(context, filepath, type, resample_value, spline):
     return {'FINISHED'}
 
 class ExportApx(Operator, ExportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
+    """Write a APX file"""
     bl_idname = "export.apx"  # important since its how bpy.ops.export.apx is constructed
     bl_label = "Export APX"
 

@@ -96,7 +96,7 @@ def shape_hair_interp(context):
             # Interpolation      
             else:      
                 interest_vert = duplicateMesh.data.vertices[i]
-                selected_vertices = getConnectedVertices(duplicateMesh, interest_vert, 1) #Number of steps adjustable
+                selected_vertices = getConnectedVertices(duplicateMesh, interest_vert, 2) #Number of steps adjustable
                 
                 closestCurveIndexes = []
                 for id in selected_vertices:

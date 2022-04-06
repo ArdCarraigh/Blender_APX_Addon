@@ -84,7 +84,7 @@ template_hairworks = '''<!DOCTYPE NvParameters>
 </value>
 <value name="" type="Ref" className="HairInstanceDescriptor" version="1.1" checksum="">
   <struct name="">
-    <array name="materials" size="4" type="Struct">
+    <array name="materials" size="1" type="Struct">
       <struct>
         <value name="name" null="1" type="String"></value>
         <value name="densityTextureChan" type="U32">0</value>
@@ -100,18 +100,21 @@ template_hairworks = '''<!DOCTYPE NvParameters>
         <value name="stiffnessTextureChan" type="U32">0</value>
         <value name="rootStiffnessTextureChan" type="U32">0</value>
         <value name="splineMultiplier" type="U32">{splines}</value>
+        <value name="assetType" type="U32">0</value>
+        <value name="assetPriority" type="U32">0</value>
+        <value name="assetGroup" type="U32">0</value>
         <value name="width" type="F32">1</value>
         <value name="widthNoise" type="F32">0</value>
         <value name="clumpNoise" type="F32">0</value>
         <value name="clumpNumSubclumps" type="U32">0</value>
         <value name="clumpRoundness" type="F32">1</value>
         <value name="clumpScale" type="F32">0</value>
-        <value name="clumpPerVertex" type="Bool">true</value>
-        <value name="density" type="F32">0.25</value>
-        <value name="lengthNoise" type="F32">0</value>
+        <value name="clumpPerVertex" type="Bool">false</value>
+        <value name="density" type="F32">1</value>
+        <value name="lengthNoise" type="F32">1</value>
         <value name="lengthScale" type="F32">1</value>
         <value name="widthRootScale" type="F32">1</value>
-        <value name="widthTipScale" type="F32">0.5</value>
+        <value name="widthTipScale" type="F32">0.100000001</value>
         <value name="waveRootStraighten" type="F32">0</value>
         <value name="waveScale" type="F32">0</value>
         <value name="waveScaleNoise" type="F32">0.5</value>
@@ -134,20 +137,20 @@ template_hairworks = '''<!DOCTYPE NvParameters>
         <value name="useViewfrustrumCulling" type="Bool">true</value>
         <value name="useBackfaceCulling" type="Bool">false</value>
         <value name="backfaceCullingThreshold" type="F32">-0.200000003</value>
-        <value name="usePixelDensity" type="Bool">true</value>
+        <value name="usePixelDensity" type="Bool">false</value>
         <value name="alpha" type="F32">0</value>
         <value name="strandBlendScale" type="F32">1</value>
         <value name="baseColor" type="Vec4">0 0 0 0</value>
         <value name="diffuseBlend" type="F32">0.5</value>
-        <value name="diffuseScale" type="F32">1</value>
+        <value name="diffuseScale" type="F32">0</value>
         <value name="diffuseHairNormalWeight" type="F32">0</value>
         <value name="diffuseBoneIndex" type="U32">0</value>
         <value name="diffuseBoneLocalPos" type="Vec3">0 0 0</value>
-        <value name="diffuseNoiseFreqU" type="F32">64</value>
-        <value name="diffuseNoiseFreqV" type="F32">64</value>
+        <value name="diffuseNoiseFreqU" type="F32">0</value>
+        <value name="diffuseNoiseFreqV" type="F32">0</value>
         <value name="diffuseNoiseScale" type="F32">0</value>
         <value name="diffuseNoiseGain" type="F32">0</value>
-        <value name="textureBrightness" type="F32">1</value>
+        <value name="textureBrightness" type="F32">0</value>
         <value name="diffuseColor" type="Vec4">0 0 0 0</value>
         <value name="rootColor" type="Vec4">1 1 1 1</value>
         <value name="tipColor" type="Vec4">1 1 1 1</value>
@@ -168,24 +171,24 @@ template_hairworks = '''<!DOCTYPE NvParameters>
         <value name="specularPowerPrimary" type="F32">100</value>
         <value name="specularPowerSecondary" type="F32">20</value>
         <value name="strandBlendMode" type="U32">0</value>
-        <value name="useTextures" type="Bool">true</value>
+        <value name="useTextures" type="Bool">false</value>
         <value name="useShadows" type="Bool">false</value>
         <value name="shadowDensityScale" type="F32">0.5</value>
         <value name="castShadows" type="Bool">true</value>
         <value name="receiveShadows" type="Bool">true</value>
-        <value name="backStopRadius" type="F32">0.1</value>
+        <value name="backStopRadius" type="F32">0</value>
         <value name="bendStiffness" type="F32">0</value>
         <value name="interactionStiffness" type="F32">0</value>
         <value name="pinStiffness" type="F32">1</value>
         <value name="collisionOffset" type="F32">0</value>
         <value name="useCollision" type="Bool">false</value>
         <value name="useDynamicPin" type="Bool">false</value>
-        <value name="damping" type="F32">0.0399999991</value>
+        <value name="damping" type="F32">0</value>
         <value name="friction" type="F32">0</value>
-        <value name="massScale" type="F32">1</value>
-        <value name="gravity" type="Vec3">0 -1 0</value>
-        <value name="inertiaScale" type="F32">0</value>
-        <value name="inertiaLimit" type="F32">0</value>
+        <value name="massScale" type="F32">10</value>
+        <value name="gravity" type="Vec3">0 0 -1</value>
+        <value name="inertiaScale" type="F32">1</value>
+        <value name="inertiaLimit" type="F32">1000</value>
         <value name="rootStiffness" type="F32">0.5</value>
         <value name="tipStiffness" type="F32">0</value>
         <value name="simulate" type="Bool">true</value>
