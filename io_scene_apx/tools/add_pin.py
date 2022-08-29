@@ -2,12 +2,9 @@
 # tools/add_pin.py
 
 import bpy
-import math
-import random
 from bpy_extras.object_utils import object_data_add
-from mathutils import Vector, Matrix
 
-def add_pin(context, radius):
+def add_pin(context, radius, location):
     parent_coll = bpy.context.view_layer.active_layer_collection
     sphere_coll = bpy.data.collections.new("Pin Constraints")
     sphere_coll_name = sphere_coll.name
@@ -24,7 +21,10 @@ def add_pin(context, radius):
     boneRotation = bpy.context.active_object.rotation_euler
     boneLocation = bpy.context.active_object.location
     
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=bonePos, segments=24, ring_count=16)
+    if location == (0,0,0):
+        location = bonePos
+    
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=location, segments=24, ring_count=16)
     
     num = 1
     while "pin_" + boneName + "_" + str(num) in bpy.context.view_layer.active_layer_collection.collection.objects:

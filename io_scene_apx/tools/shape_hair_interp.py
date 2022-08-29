@@ -3,16 +3,13 @@
 
 import bpy
 import math
-import random
 import copy
 import numpy as np
 from math import sqrt
 from bpy_extras.object_utils import object_data_add
-from mathutils import Vector, Matrix
+from mathutils import Vector
 from io_scene_apx.tools import shape_hair
 from io_scene_apx.tools.shape_hair import whichClosestCoords
-from statistics import mean
-import copy
 
 def getConnectedVertices(obj, vertex, steps):
     interest_verts = [vertex.index]
@@ -42,7 +39,7 @@ def shape_hair_interp(context):
     bpy.ops.object.mode_set(mode='OBJECT')
     duplicateMesh = bpy.context.active_object
     bpy.context.view_layer.objects.active = None
-    bpy.ops.object.select_all(False)
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.context.view_layer.objects.active = growthMesh
     bpy.context.active_object.select_set(state=True)
     # Check curves
@@ -151,7 +148,7 @@ def shape_hair_interp(context):
         bpy.ops.particle.connect_hair()
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.view_layer.objects.active = None
-        bpy.ops.object.select_all(False)
+        bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = duplicateMesh
         bpy.context.active_object.select_set(state=True)
         bpy.ops.object.delete(use_global=False, confirm=False)

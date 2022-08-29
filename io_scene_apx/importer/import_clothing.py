@@ -4,7 +4,8 @@
 import bpy
 import bmesh
 import math
-import random
+import random, colorsys
+import xml.etree.ElementTree as ET
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector, Matrix
 from io_scene_apx import number_to_words
@@ -521,7 +522,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                     mesh.uv_layers.new(name=uvmap_names[i])
                     for face in mesh.polygons:
                         for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                            mesh.uv_layers.active.data[loop_idx].uv = (texCoords2_all[i][vert_idx][0], texCoords2_all[i][vert_idx][1])
+                            mesh.uv_layers[uvmap_names[i]].data[loop_idx].uv = (texCoords2_all[i][vert_idx][0], texCoords2_all[i][vert_idx][1])
                             
                 # Tangent and Normals #Looks like this part is kinda useless
                 mesh.calc_normals()
@@ -610,7 +611,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                 bind_pose[-1] = bind_pose[-1][:len(bind_pose[-1])-8]
             if 'value name="name"' in line:
                 bpy.context.view_layer.objects.active = None
-                bpy.ops.object.select_all(False)
+                bpy.ops.object.select_all(action='DESELECT')
                 temp10 = line.split()
                 bone_name = temp10[2][14:len(temp10[2])-8]
                 boneIndexation[bone_index_internal] = bone_name
@@ -770,23 +771,18 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         bpy.context.active_object.vertex_groups[lod_boneIndices_all[y][i][j][3]].add([mesh2.data.vertices[j].index], lod_boneWeights_all[y][i][j][3], 'REPLACE')
 
                 # Materials attribution
-                if use_mat == True:
-                    if lod_materials_all[y][i] in bpy.data.materials:
-                        mesh2.data.materials.append(bpy.data.materials[lod_materials_all[y][i]])
-                    else:
-                        temp_mat = bpy.data.materials.new(lod_materials_all[y][i])
-                        mesh2.data.materials.append(temp_mat)
-                        temp_mat.diffuse_color = (random.random(), random.random(), random.random(), 1)
+                if use_mat == True and lod_materials_all[y][i] in bpy.data.materials:
+                    mesh2.data.materials.append(bpy.data.materials[lod_materials_all[y][i]])
                 else:
                     temp_mat = bpy.data.materials.new(lod_materials_all[y][i])
                     mesh2.data.materials.append(temp_mat)
-                    temp_mat.diffuse_color = (random.random(), random.random(), random.random(), 1)
+                    temp_mat.diffuse_color = (*colorsys.hsv_to_rgb(random.random(), .7, .9), 1)
 
         # Join submeshes under the same LOD
         finalMeshes_names = []
         for y in range(len(lod_mesh_names)):
             bpy.context.view_layer.objects.active = None
-            bpy.ops.object.select_all(False)
+            bpy.ops.object.select_all(action='DESELECT')
             for i in reversed(range(len(lod_mesh_names[y]))):
                 bpy.context.view_layer.objects.active = bpy.data.objects[lod_mesh_names[y][i]]
                 bpy.context.active_object.select_set(state=True)
@@ -811,7 +807,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
                         me.vertex_colors["BackstopRadius"].data[loop_idx].color = [0,1,0,1]
                         me.vertex_colors["BackstopDistance"].data[loop_idx].color = [0,1,0,1]
             bpy.context.view_layer.objects.active = None
-            bpy.ops.object.select_all(False)
+            bpy.ops.object.select_all(action='DESELECT')
             bpy.context.view_layer.objects.active = bpy.data.objects[finalMeshes_names[i]]
             bpy.context.active_object.select_set(state=True)
             bpy.context.view_layer.objects.active = bpy.data.objects[physicalMeshes_names[i]]
@@ -835,12 +831,12 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armatur
         if rm_ph_me == True:
             for i in range(len(physicalMeshes_names)):
                 bpy.context.view_layer.objects.active = None
-                bpy.ops.object.select_all(False)
+                bpy.ops.object.select_all(action='DESELECT')
                 bpy.context.view_layer.objects.active = bpy.data.objects[physicalMeshes_names[i]]
                 bpy.context.active_object.select_set(state=True)
                 bpy.ops.object.delete()
                 bpy.context.view_layer.objects.active = None
-                bpy.ops.object.select_all(False)
+                bpy.ops.object.select_all(action='DESELECT')
                 
         # Set up the ragdoll definitons
         if COLLISION_CAPSULES == True:

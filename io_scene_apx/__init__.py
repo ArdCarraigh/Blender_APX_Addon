@@ -246,13 +246,18 @@ class AddCollisionSphere(Operator, AddObjectHelper):
         default = 0.15,
         description="Set the radius of the sphere",
     )
+    location: FloatVectorProperty(
+        name="Location",
+        default=(0.0, 0.0, 0.0),
+        description="Set the location of the sphere",
+    )
 
     def execute(self, context):
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        add_sphere(context, self.radius)
+        add_sphere(context, self.radius, self.location)
         return {'FINISHED'}
     
 class AddSphereConnection(Operator):
@@ -280,13 +285,18 @@ class AddPinSphere(Operator, AddObjectHelper):
         default = 0.15,
         description="Set the radius of the sphere",
     )
+    location: FloatVectorProperty(
+        name="Location",
+        default=(0.0, 0.0, 0.0),
+        description="Set the location of the sphere",
+    )
 
     def execute(self, context):
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        add_pin(context, self.radius)
+        add_pin(context, self.radius, self.location)
         return {'FINISHED'}
     
 class ShapeHair(Operator):

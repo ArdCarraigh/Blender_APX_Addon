@@ -3,11 +3,11 @@
 
 import bpy
 import math
-import random
 import copy
+import numpy as np
 from math import sqrt
 from bpy_extras.object_utils import object_data_add
-from mathutils import Vector, Matrix
+from mathutils import Vector
 
 def add_connection(context):
     parent_coll = bpy.context.view_layer.active_layer_collection
@@ -29,10 +29,6 @@ def add_connection(context):
     else:
         correctNames = 0
         for obj in objects:
-            bpy.context.view_layer.objects.active = None
-            bpy.ops.object.select_all(False)
-            bpy.context.view_layer.objects.active = obj
-            bpy.context.active_object.select_set(state=True)
             objName.append(obj.name)
             if obj.name.startswith("sphere_") == True and "_to_" not in obj.name:
                 correctNames += 1
@@ -44,7 +40,7 @@ def add_connection(context):
             if connectionName not in bpy.context.view_layer.active_layer_collection.collection.objects:
                 for obj in objects:
                     bpy.context.view_layer.objects.active = None
-                    bpy.ops.object.select_all(False)
+                    bpy.ops.object.select_all(action='DESELECT')
                     bpy.context.view_layer.objects.active = obj
                     bpy.context.active_object.select_set(state=True)
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
@@ -55,52 +51,50 @@ def add_connection(context):
                     radius = sqrt((vert[0])**2 + (vert[1])**2 + (vert[2])**2)
                     objRadius.append(copy.deepcopy(radius))
                     bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-            
-                # create the Curve Datablock
-                curveData = bpy.data.curves.new(connectionName, type='CURVE')
-                curveData.dimensions = '3D'
-                curveData.resolution_u = 2
-                curveData.bevel_depth = 1.0
-                curveData.bevel_resolution = 10
-                edge_vertices = 4 + (10*2)
                 
-                # map coords to spline
-                polyline = curveData.splines.new('POLY')
-                polyline.points.add(len(objCenter)-1)
-                for j, coord in enumerate(objCenter):
-                    x,y,z = coord
-                    polyline.points[j].co = (x, y, z, 1)
-                    
-                # Add the curves to the scene
-                object_data_add(context, curveData)
+                pos_2 = objCenter[1]
+                pos_1 = objCenter[0]
+                R2 = objRadius[1]
+                R1 = objRadius[0]
                 
-                # Scale the edge loops to the spheres' radius
-                bpy.ops.object.convert(target = 'MESH')
-                mesh = bpy.context.active_object
-                for j in range(edge_vertices):
-                    mesh.data.vertices[j].select = True
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.transform.resize(value = (objRadius[0], objRadius[0], objRadius[0]))
-                bpy.ops.mesh.select_all(action="DESELECT")
-                bpy.ops.object.mode_set(mode='OBJECT')
-                for j in range(edge_vertices, edge_vertices * 2):
-                    mesh.data.vertices[j].select = True
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.transform.resize(value = (objRadius[1], objRadius[1], objRadius[1]))   
-                bpy.ops.mesh.select_all(action="DESELECT")
-                bpy.ops.object.mode_set(mode='OBJECT')
+                AB = np.linalg.norm(pos_2-pos_1)
+                BE = abs(R2-R1)
+                AE = (AB**2 - (R2-R1)**2)**.5
+                cone_radius_1 = R1 * AE / AB
+                cone_radius_2 = R2 * AE / AB
+                AG = R1 * BE / AB
+                BF = R2 * BE / AB
                 
+                AB_dir = (pos_2-pos_1)/AB
+                if R1 > R2:
+                    cone_pos = pos_1 + AB_dir * AG
+                else:
+                    cone_pos = pos_1 - AB_dir * AG
+                
+                cone_depth = AB - abs(AG-BF)
+                cone_pos = cone_pos + AB_dir * cone_depth * .5 #cone pos is midpoint of centerline
+                rotation = Vector([0,0,1]).rotation_difference(Vector(AB_dir)).to_euler("XYZ") ### may need to change
+                
+                bpy.ops.mesh.primitive_cone_add(
+                    vertices=24, 
+                    radius1=cone_radius_1, 
+                    radius2=cone_radius_2, 
+                    depth=cone_depth, 
+                    location=cone_pos, 
+                    rotation=rotation, 
+                    )
+                
+                bpy.context.active_object.name = connectionName
                 bpy.context.active_object.display_type = 'WIRE'
-                bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
                       
                 bpy.context.view_layer.active_layer_collection = parent_coll
             else:
-                print("This connection exists already.")
+                print("This connection already exists.")
                 bpy.context.view_layer.objects.active = None
-                bpy.ops.object.select_all(False)
+                bpy.ops.object.select_all(action='DESELECT')
                 bpy.context.view_layer.active_layer_collection = parent_coll
         else:
             print("You need to connect two collision spheres.")
             bpy.context.view_layer.objects.active = None
-            bpy.ops.object.select_all(False)
+            bpy.ops.object.select_all(action='DESELECT')
             bpy.context.view_layer.active_layer_collection = parent_coll

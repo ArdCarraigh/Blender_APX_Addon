@@ -78,7 +78,7 @@ def write_hairworks(context, filepath, resample_value, spline):
         
     # Delete particle system to allow applying transforms and triangulation of faces without messing up the hair
     bpy.context.view_layer.objects.active = None
-    bpy.ops.object.select_all(False)
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.context.view_layer.objects.active = duplicate_GrowthMesh
     bpy.context.active_object.select_set(state=True)
     bpy.ops.object.particle_system_remove()
@@ -234,7 +234,7 @@ def write_hairworks(context, filepath, resample_value, spline):
         if len(spheres) > 0:
             for sphere in spheres:
                 bpy.context.view_layer.objects.active = None
-                bpy.ops.object.select_all(False)
+                bpy.ops.object.select_all(action='DESELECT')
                 bpy.context.view_layer.objects.active = sphere
                 bpy.context.active_object.select_set(state=True)
                 sphereIndex[sphere.name] = sphereIndex_value
@@ -294,7 +294,7 @@ def write_hairworks(context, filepath, resample_value, spline):
         if len(pins) > 0:
             for pin in pins:
                 bpy.context.view_layer.objects.active = None
-                bpy.ops.object.select_all(False)
+                bpy.ops.object.select_all(action='DESELECT')
                 bpy.context.view_layer.objects.active = pin
                 bpy.context.active_object.select_set(state=True)
                 pinBoneName = pin.name[pin.name.find("_")+1:pin.name.rfind("_")]
@@ -324,7 +324,7 @@ def write_hairworks(context, filepath, resample_value, spline):
     
     # Delete the duplicate growthmesh used for resampling as well as the temporary curve collection
     bpy.context.view_layer.objects.active = None
-    bpy.ops.object.select_all(False)
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.context.view_layer.objects.active = duplicate_GrowthMesh
     bpy.context.active_object.select_set(state=True)
     bpy.ops.object.delete(use_global=False, confirm=False)

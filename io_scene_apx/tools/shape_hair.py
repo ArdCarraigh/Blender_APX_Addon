@@ -3,12 +3,10 @@
 
 import bpy
 import math
-import random
-import copy
 import numpy as np
 from math import sqrt
 from bpy_extras.object_utils import object_data_add
-from mathutils import Vector, Matrix
+from mathutils import Vector
 
 def whichClosestCoords(vert_coord, array2D):
     list2 = []
