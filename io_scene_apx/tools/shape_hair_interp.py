@@ -8,8 +8,13 @@ import numpy as np
 from math import sqrt
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector
-from io_scene_apx.tools import shape_hair
-from io_scene_apx.tools.shape_hair import whichClosestCoords
+
+def whichClosestCoords(vert_coord, array2D):
+    list2 = []
+    for i in range(len(array2D)):
+        list2.append(sqrt((array2D[i][0] - vert_coord[0])**2 + (array2D[i][1] - vert_coord[1])**2 + (array2D[i][2] - vert_coord[2])**2))
+    closestIndex = list2.index(min(list2))
+    return(closestIndex)
 
 def getConnectedVertices(obj, vertex, steps):
     interest_verts = [vertex.index]
@@ -25,7 +30,7 @@ def getConnectedVertices(obj, vertex, steps):
     connected_vertices = interest_verts
     return(connected_vertices)
 
-def shape_hair_interp(context):
+def shape_hair_interp(context, steps):
     growthMesh = bpy.context.active_object
     scale = np.array(copy.deepcopy(growthMesh.scale))
     threshold = np.array((0.01,0.01,0.01)) / scale # 1cm, adjustable
@@ -70,10 +75,10 @@ def shape_hair_interp(context):
         curveBases = np.zeros(shape=(len(curves), 3))
         for i in range(len(curves)):
             curveBases[i] = curves[i].data.splines[0].points[0].co[0:3] 
-            
-        curve_1st_verts = np.zeros(shape=(len(curves), 3))
-        for i in range(len(curves)):
-            curve_1st_verts[i] = curves[i].data.splines[0].points[1].co[0:3] 
+        if steps != 0:  
+            curve_1st_verts = np.zeros(shape=(len(curves), 3))
+            for i in range(len(curves)):
+                curve_1st_verts[i] = curves[i].data.splines[0].points[1].co[0:3] 
         
         for i in range(len(growthMesh.data.vertices)):
             closestCurveIndex = whichClosestCoords(growthMesh.data.vertices[i].co[0:3], curveBases)
@@ -81,7 +86,7 @@ def shape_hair_interp(context):
             # No interpolation for close curve 
             diffBase = Vector((growthMesh.data.vertices[i].co[0:3])) - Vector((curves[closestCurveIndex].data.splines[0].points[0].co[0:3]))
             distBase = sqrt(diffBase[0]**2 + diffBase[1]**2 + diffBase[2]**2)
-            if distBase <= dist_threshold:
+            if distBase <= dist_threshold or steps == 0:
                 for j in range(0,len(curves[closestCurveIndex].data.splines[0].points)):
                     growthMesh2.particle_systems[0].particles[i].hair_keys[j].co_object_set(
                         object = growthMesh2,
@@ -93,11 +98,16 @@ def shape_hair_interp(context):
             # Interpolation      
             else:      
                 interest_vert = duplicateMesh.data.vertices[i]
-                selected_vertices = getConnectedVertices(duplicateMesh, interest_vert, 2) #Number of steps adjustable
+                selected_vertices = getConnectedVertices(duplicateMesh, interest_vert, steps)
                 
                 closestCurveIndexes = []
                 for id in selected_vertices:
-                    closestCurveIndexes.append(whichClosestCoords(duplicateMesh.data.vertices[id].co[0:3], curveBases)) # use either curveBases or curve_1st_verts
+                    closestCurveIndexBase = whichClosestCoords(duplicateMesh.data.vertices[id].co[0:3], curveBases)
+                    closestCurveIndex1stVert = whichClosestCoords(duplicateMesh.data.vertices[id].co[0:3], curve_1st_verts)
+                    #if closestCurveIndexBase == closestCurveIndex1stVert:
+                    closestCurveIndexes.append(closestCurveIndexBase)
+                    #else:
+                    #    closestCurveIndexes.append(closestCurveIndex1stVert)    
                 
                 dist_all = []
                 for id in closestCurveIndexes:
@@ -152,4 +162,4 @@ def shape_hair_interp(context):
         bpy.context.view_layer.objects.active = duplicateMesh
         bpy.context.active_object.select_set(state=True)
         bpy.ops.object.delete(use_global=False, confirm=False)
-        
+        bpy.context.view_layer.objects.active = growthMesh

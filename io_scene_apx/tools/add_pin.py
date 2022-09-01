@@ -4,24 +4,23 @@
 import bpy
 from bpy_extras.object_utils import object_data_add
 
-def add_pin(context, radius, location):
+def add_pin(context, radius, location, use_location):
     parent_coll = bpy.context.view_layer.active_layer_collection
-    sphere_coll = bpy.data.collections.new("Pin Constraints")
-    sphere_coll_name = sphere_coll.name
     if "Pin Constraints" in parent_coll.collection.children:
         bpy.context.view_layer.active_layer_collection = parent_coll.children["Pin Constraints"]
     else:
+        sphere_coll = bpy.data.collections.new("Pin Constraints")
+        sphere_coll_name = sphere_coll.name
         parent_coll.collection.children.link(sphere_coll)
         bpy.context.view_layer.active_layer_collection = parent_coll.children[sphere_coll_name]
         
-    
     bonePos = bpy.context.active_bone.matrix_local.translation
     boneName = bpy.context.active_bone.name
     boneScale = bpy.context.active_object.scale
     boneRotation = bpy.context.active_object.rotation_euler
     boneLocation = bpy.context.active_object.location
     
-    if location == (0,0,0):
+    if not use_location:
         location = bonePos
     
     bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=location, segments=24, ring_count=16)

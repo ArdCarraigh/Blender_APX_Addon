@@ -25,14 +25,14 @@ from io_scene_apx.importer.import_clothing import read_clothing
 from io_scene_apx.importer.import_hairworks import read_hairworks
 from io_scene_apx.exporter import export_hairworks
 from io_scene_apx.exporter.export_hairworks import write_hairworks
+from io_scene_apx.tools import add_capsule
+from io_scene_apx.tools.add_capsule import add_capsule
 from io_scene_apx.tools import add_sphere
 from io_scene_apx.tools.add_sphere import add_sphere
 from io_scene_apx.tools import add_connection
 from io_scene_apx.tools.add_connection import add_connection
 from io_scene_apx.tools import add_pin
 from io_scene_apx.tools.add_pin import add_pin
-from io_scene_apx.tools import shape_hair
-from io_scene_apx.tools.shape_hair import shape_hair
 from io_scene_apx.tools import create_curve
 from io_scene_apx.tools.create_curve import create_curve
 from io_scene_apx.tools import haircard_curve
@@ -41,7 +41,7 @@ from io_scene_apx.tools import shape_hair_interp
 from io_scene_apx.tools.shape_hair_interp import shape_hair_interp
 
 
-def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_armature, rm_ph_me):
+def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, rm_ph_me):
     print("running read_apx...")
     
     # Should work from all modes
@@ -62,11 +62,11 @@ def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, minimal_
 
     # If PhysX Clothing type
     if type == 'cloth':
-        read_clothing(context, filepath, rm_db, use_mat, rotate_180, minimal_armature, rm_ph_me)
+        read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me)
 
     # If Hairworks type
     if type == 'hair':
-        read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature)
+        read_hairworks(context, filepath, rotate_180, scale_down)
 
     # Unselect everything
     bpy.context.view_layer.objects.active = None
@@ -115,12 +115,6 @@ class ImportApx(Operator, ImportHelper):
         default=True
     )
     
-    minimal_armature: BoolProperty(
-        name="Minimal Armature",
-        description="Limit the bone importation to those used to weight the meshes",
-        default=False
-    )
-    
     rm_ph_me: BoolProperty(
         name="Remove Physical Meshes",
         description="Remove the physical meshes after transfer of vertex colors to graphical meshes",
@@ -133,7 +127,7 @@ class ImportApx(Operator, ImportHelper):
         sections = ["General", "Clothing", "Hairworks"]
         
         section_options = {
-            "General" : ["rotate_180", "minimal_armature"], 
+            "General" : ["rotate_180"], 
             "Clothing" : ["rm_db", "use_mat", "rm_ph_me"], 
             "Hairworks" : ["scale_down"]
         }
@@ -150,7 +144,7 @@ class ImportApx(Operator, ImportHelper):
                 box.prop(self, prop)
                 
     def execute(self, context):
-        return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.minimal_armature, self.rm_ph_me)
+        return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.rm_ph_me)
 
 
 def write_apx(context, filepath, type, resample_value, spline):
@@ -234,8 +228,49 @@ class ExportApx(Operator, ExportHelper):
     def execute(self, context):
         return write_apx(context, self.filepath, self.type, self.resample_value, self.spline)
     
+class AddCollisionCapsule(Operator):
+    """Create a new Collision Capsule"""
+    bl_idname = "physx.add_collision_capsule"
+    bl_label = "Add Collision Capsule"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    radius: FloatProperty(
+        name="Radius",
+        default = 0.15,
+        description="Set the radius of the capsule",
+    )
+    height: FloatProperty(
+        name="Height",
+        default = 0.3,
+        description="Set the height of the capsule",
+    )
+    location: FloatVectorProperty(
+        name="Location",
+        default=(0, 0, 0),
+        description="Set the location of the capsule",
+        subtype = 'COORDINATES'
+    )
+    rotation: FloatVectorProperty(
+        name="Rotation",
+        default=(0, 0, 0),
+        description="Set the rotation of the capsule",
+        subtype = 'COORDINATES'
+    )
+    use_location: BoolProperty(
+        name="Use Location",
+        default=False,
+        description="Use custom location, or bone location"
+    )
+
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        add_capsule(context, self.radius, self.height, self.location, self.rotation, self.use_location)
+        return {'FINISHED'}
       
-class AddCollisionSphere(Operator, AddObjectHelper):
+class AddCollisionSphere(Operator):
     """Create a new Collision Sphere"""
     bl_idname = "physx.add_collision_sphere"
     bl_label = "Add Collision Sphere"
@@ -248,8 +283,14 @@ class AddCollisionSphere(Operator, AddObjectHelper):
     )
     location: FloatVectorProperty(
         name="Location",
-        default=(0.0, 0.0, 0.0),
+        default=(0, 0, 0),
         description="Set the location of the sphere",
+        subtype = 'COORDINATES'
+    )
+    use_location: BoolProperty(
+        name="Use Location",
+        default=False,
+        description="Use custom location, or bone location"
     )
 
     def execute(self, context):
@@ -257,7 +298,7 @@ class AddCollisionSphere(Operator, AddObjectHelper):
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        add_sphere(context, self.radius, self.location)
+        add_sphere(context, self.radius, self.location, self.use_location)
         return {'FINISHED'}
     
 class AddSphereConnection(Operator):
@@ -274,7 +315,7 @@ class AddSphereConnection(Operator):
         add_connection(context)
         return {'FINISHED'}
     
-class AddPinSphere(Operator, AddObjectHelper):
+class AddPinSphere(Operator):
     """Create a new Pin Sphere"""
     bl_idname = "physx.add_pin_sphere"
     bl_label = "Add Pin Sphere"
@@ -287,8 +328,14 @@ class AddPinSphere(Operator, AddObjectHelper):
     )
     location: FloatVectorProperty(
         name="Location",
-        default=(0.0, 0.0, 0.0),
+        default=(0, 0, 0),
         description="Set the location of the sphere",
+        subtype = 'COORDINATES'
+    )
+    use_location: BoolProperty(
+        name="Use Location",
+        default=False,
+        description="Use custom location, or bone location"
     )
 
     def execute(self, context):
@@ -296,35 +343,28 @@ class AddPinSphere(Operator, AddObjectHelper):
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        add_pin(context, self.radius, self.location)
-        return {'FINISHED'}
-    
-class ShapeHair(Operator):
-    """Shape Hair from Curves"""
-    bl_idname = "physx.shape_hair"
-    bl_label = "Shape Hair from Curves"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
-        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        shape_hair(context)
+        add_pin(context, self.radius, self.location, self.use_location)
         return {'FINISHED'}
     
 class ShapeHairInterp(Operator):
-    """Shape Hair from Curves with Interpolation !!EXPERIMENTAL!!"""
+    """Shape Hair from Curves"""
     bl_idname = "physx.shape_hair_interp"
-    bl_label = "Shape Hair from Curves with Interpolation !!EXPERIMENTAL!!"
+    bl_label = "Shape Hair from Curves. Interpolation when steps parameter superior to 0"
     bl_options = {'REGISTER', 'UNDO'}
+    
+    steps: IntProperty(
+        name="Interpolation Steps",
+        default = 0,
+        min = 0,
+        description="Number of steps taken around each vertex for interpolation"
+    )
 
     def execute(self, context):
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        shape_hair_interp(context)
+        shape_hair_interp(context, self.steps)
         return {'FINISHED'}
     
 class CreateCurve(Operator):
@@ -362,15 +402,15 @@ class PhysXMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("add_sphere_button", text = "Add Collision Capsule (Clothing)", icon='MESH_CAPSULE')
+        layout.operator(AddCollisionCapsule.bl_idname, text = "Add Collision Capsule (Clothing)", icon='MESH_CAPSULE')
         layout.operator(AddCollisionSphere.bl_idname, text = "Add Collision Sphere", icon='MESH_UVSPHERE')
         layout.operator(AddSphereConnection.bl_idname, text = "Add Sphere Connection", icon='MESH_CAPSULE')
         layout.operator(AddPinSphere.bl_idname, text = "Add Pin Sphere (Hairworks)", icon='MESH_UVSPHERE')
-        layout.operator(ShapeHair.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='HAIR')
-        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves with Interpolation (Hairworks)", icon='HAIR')
+        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='HAIR')
         layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair (Hairworks)", icon='CURVE_DATA')
         layout.operator(HaircardCurve.bl_idname, text = "Create Curves from Haircard Mesh (Hairworks)", icon='CURVE_DATA')
-
+        
+CLASSES = [ImportApx, ExportApx, AddCollisionCapsule, AddCollisionSphere, AddSphereConnection, AddPinSphere, ShapeHairInterp, CreateCurve, HaircardCurve, PhysXMenu]
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_import(self, context):
@@ -385,39 +425,20 @@ def draw_item(self, context):
     layout.menu(PhysXMenu.bl_idname)
 
 def register():
-    bpy.utils.register_class(ImportApx)
-    bpy.utils.register_class(ExportApx)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
-    
-    bpy.utils.register_class(AddCollisionSphere)
-    bpy.utils.register_class(AddSphereConnection)
-    bpy.utils.register_class(AddPinSphere)
-    bpy.utils.register_class(ShapeHair)
-    bpy.utils.register_class(ShapeHairInterp)
-    bpy.utils.register_class(CreateCurve)
-    bpy.utils.register_class(HaircardCurve)
-    
-    bpy.utils.register_class(PhysXMenu)
     bpy.types.VIEW3D_MT_object.append(draw_item)
+    
+    for klass in CLASSES:
+        bpy.utils.register_class(klass)
 
 def unregister():
-    bpy.utils.unregister_class(ImportApx)
-    bpy.utils.unregister_class(ExportApx)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
-    
-    bpy.utils.unregister_class(AddCollisionSphere)
-    bpy.utils.unregister_class(AddSphereConnection)
-    bpy.utils.unregister_class(AddPinSphere)
-    bpy.utils.unregister_class(ShapeHair)
-    bpy.utils.unregister_class(ShapeHairInterp)
-    bpy.utils.unregister_class(CreateCurve)
-    bpy.utils.unregister_class(HaircardCurve)
-    
-    bpy.utils.unregister_class(PhysXMenu)
     bpy.types.VIEW3D_MT_object.remove(draw_item)
-
+    
+    for klass in CLASSES:
+        bpy.utils.unregister_class(klass)
 
 if __name__ == "__main__":
     register()

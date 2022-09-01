@@ -95,7 +95,7 @@ def write_hairworks(context, filepath, resample_value, spline):
     bpy.ops.mesh.select_all(action="DESELECT")
     bpy.ops.object.mode_set(mode='OBJECT')
     # Reapply hair after corrections
-    bpy.ops.physx.shape_hair()
+    bpy.ops.physx.shape_hair_interp(steps = 0)
     
     #Back to the state before corrections
     bpy.context.view_layer.active_layer_collection = parent_coll
@@ -200,9 +200,9 @@ def write_hairworks(context, filepath, resample_value, spline):
     for bone in usedBones:
         for index, pose in enumerate(poseBones):
             if bone.name == pose.name:
-                par_mat_inv = bones[bone.name].parent.matrix_local.inverted_safe() if bones[bone.name].parent else Matrix()
+                par_mat_inv = bones[bone.name].parent.matrix_local.inverted_safe() if bones[bone.name].parent and bones[bone.name].use_relative_parent else Matrix()
                 matrix = par_mat_inv @ bones[bone.name].matrix_local
-                if bones[bone.name].parent is not None :
+                if bones[bone.name].parent is not None and bones[bone.name].use_relative_parent:
                     matrix = ctxt_object.matrix_parent_inverse.inverted() * bones[bone.name].parent.matrix_local * matrix
                 matrix.transpose()
                 poses.append(matrix)

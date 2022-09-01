@@ -11,11 +11,11 @@ from mathutils import Vector
 
 def add_connection(context):
     parent_coll = bpy.context.view_layer.active_layer_collection
-    sphere_connec_coll = bpy.data.collections.new("Collision Spheres Connections")
-    sphere_connec_coll_name = sphere_connec_coll.name
     if "Collision Spheres Connections" in parent_coll.collection.children:
         bpy.context.view_layer.active_layer_collection = parent_coll.children["Collision Spheres Connections"]
     else:
+        sphere_connec_coll = bpy.data.collections.new("Collision Spheres Connections")
+        sphere_connec_coll_name = sphere_connec_coll.name
         parent_coll.collection.children.link(sphere_connec_coll)
         bpy.context.view_layer.active_layer_collection = parent_coll.children[sphere_connec_coll_name]
         

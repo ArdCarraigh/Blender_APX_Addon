@@ -7,9 +7,6 @@ import random, colorsys
 import bpy
 from bpy_extras.object_utils import object_data_add
 from mathutils import Matrix, Vector
-from itertools import count
-from io_scene_apx.tools import add_sphere
-from io_scene_apx.tools.add_sphere import add_sphere
 
 def find_elem(root, tag, attr=None, attr_value=None):
     for elem in root:
@@ -24,7 +21,15 @@ def find_elem(root, tag, attr=None, attr_value=None):
 def to_array(text, dtype, shape):
     return(np.array([dtype(x) for x in text.replace(',', ' ').split()]).reshape(shape))
 
-def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
+def JoinThem(mesh_names):
+    bpy.context.view_layer.objects.active = None
+    bpy.ops.object.select_all(action='DESELECT')
+    for j in reversed(range(len(mesh_names))):
+        bpy.context.view_layer.objects.active = bpy.data.objects[mesh_names[j]]
+        bpy.context.active_object.select_set(state=True)
+    bpy.ops.object.join()
+
+def read_hairworks(context, filepath, rotate_180, scale_down):
 
     root = ET.parse(filepath).getroot() #NvParameters element
     HairAssetDescriptor = find_elem(root, "value", "className", "HairAssetDescriptor")[0] #extra [0] to index into <struct>
@@ -43,23 +48,6 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
     endIndices = to_array(endIndices_text, int, [-1])
     assert(len(endIndices) == numGuideHairs)
     
-    # compute edges
-    guide_edges = [[i, i+1] for i in range(numVertices) if i not in endIndices]
-    
-    # add the guides to the scene
-    guides_mesh = bpy.data.meshes.new(name="Guides")
-    guides_mesh.from_pydata(vertices, guide_edges, [])
-    object_data_add(context, guides_mesh)
-
-    # scene options
-    # Rotation of the guies if requested
-    if rotate_180 == True:
-        bpy.context.active_object.rotation_euler[2] = np.pi
-
-    # Scale down if requested
-    if scale_down == True:
-        bpy.context.active_object.scale = (0.01, 0.01, 0.01)
-        
     #%% guide curves
     # Create a new collection to store curves
     parent_coll = bpy.context.view_layer.active_layer_collection
@@ -87,16 +75,15 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
         object_data_add(context, curveData)
         
         # Rotation of the curves if requested
-        if rotate_180 == True:
+        if rotate_180:
             bpy.context.active_object.rotation_euler[2] = np.pi
         
         # Scale down if requested
-        if scale_down == True:
+        if scale_down:
             bpy.context.active_object.scale = (0.01, 0.01, 0.01)
         start_idx = end_idx
         
     bpy.context.view_layer.active_layer_collection = parent_coll
-    
 
     #%% growth mesh
     # read from file
@@ -125,11 +112,11 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
 
     # scene options
     # Rotation of the growthmesh if requested
-    if rotate_180 == True:
+    if rotate_180:
         bpy.context.active_object.rotation_euler[2] = np.pi
 
     # Scale down if requested
-    if scale_down == True:
+    if scale_down:
         bpy.context.active_object.scale = (0.01, 0.01, 0.01)
         
     # Materials attribution
@@ -167,12 +154,12 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
     bindPoses_text = find_elem(HairAssetDescriptor, "array", "name", "bindPoses").text
     bindPoses = to_array(bindPoses_text, float, [-1, 4, 4])
     
-    # boneParents_text = find_elem(HairAssetDescriptor, "array", "name", "boneParents").text
-    # boneParents = to_array(boneParents_text, int, [-1])
+    boneParents_text = find_elem(HairAssetDescriptor, "array", "name", "boneParents").text
+    boneParents = to_array(boneParents_text, int, [-1])
     
     # create 1 armature per bone
     armaNames = []
-    for i in range([len(boneNames), boneIndices.max()+1][minimal_armature]):
+    for i in range(len(boneNames)):
         bpy.context.view_layer.objects.active = None
         bpy.ops.object.select_all(action='DESELECT')
         skeleton = bpy.data.armatures.new(name="Armature")
@@ -181,33 +168,33 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
         # Edit mode required to add bones to the armature
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
         b = skeleton.edit_bones.new(boneNames[i])
-        
         b.head = np.array((0,0,0))
         b.tail = np.array((0,1,0))
-        #Transform the armature to have the correct transformation, edit_bone.transform() gives wrong results
         bpy.ops.object.mode_set(mode='OBJECT')
-        
+        #Transform the armature to have the correct transformation, edit_bone.transform() gives wrong results
         skeleton.transform(Matrix(bindPoses[i].T))
         
     # Join the armatures made for each bone together
-    for i in reversed(range(len(armaNames))):
-        bpy.context.view_layer.objects.active = bpy.data.objects[armaNames[i]]
-        bpy.context.active_object.select_set(state=True)
-    bpy.ops.object.join()
+    JoinThem(armaNames)
+    arma = bpy.context.active_object
     
-    # Back to object mode
+    # Parenting Bones
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    for i in range(len(arma.data.edit_bones)):
+        if scale_down:
+            arma.data.edit_bones[i].length = 100
+        if boneParents[i] != -1:
+            arma.data.edit_bones[i].parent = arma.data.edit_bones[boneNames[boneParents[i]]]
     bpy.ops.object.mode_set(mode='OBJECT')
     
     # scene options
     # Rotation of the armature if requested
-    if rotate_180 == True:
-        bpy.context.active_object.rotation_euler[2] = np.pi
+    if rotate_180:
+        arma.rotation_euler[2] = np.pi
 
     # Scale down if requested
-    if scale_down == True:
-        bpy.context.active_object.scale = (0.01, 0.01, 0.01)
-
-    arma = bpy.context.active_object
+    if scale_down:
+        arma.scale = (0.01, 0.01, 0.01)
     
     # Parenting
     bpy.context.view_layer.objects.active = None
@@ -215,16 +202,21 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
     bpy.context.active_object.select_set(state=True)
     bpy.context.view_layer.objects.active = bpy.data.objects[arma.name]
     bpy.ops.object.parent_set(type="ARMATURE_NAME", xmirror=False, keep_transform=False)
+    bpy.context.view_layer.objects.active = None
+    bpy.ops.object.select_all(action='DESELECT')
 
     # Bone Weighting
-    bpy.context.view_layer.objects.active = None
     bpy.context.view_layer.objects.active = bpy.data.objects[growth_mesh_name]
-    # mesh2 = bpy.data.objects[growth_mesh_name] #redundant from line 99? same as `growth_mesh`?
-    #active object same as growth_mesh?
     for j, (indices, weights) in enumerate(zip(boneIndices, boneWeights)):
         for i in range(4):
             if weights[i] != 0:
-                bpy.context.active_object.vertex_groups[indices[i]].add([j], weights[i], 'REPLACE')
+                bpy.context.active_object.vertex_groups[boneNames[indices[i]]].add([j], weights[i], 'REPLACE')
+        
+    # Apply curves as hair particle system
+    bpy.context.active_object.select_set(state=True)
+    bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll_name]
+    bpy.ops.physx.shape_hair_interp(steps = 0)
+    bpy.context.view_layer.active_layer_collection = parent_coll
     
     #%% bone spheres
     numBoneSpheres = int(find_elem(HairAssetDescriptor, "value", "name", "numBoneSpheres").text)
@@ -242,8 +234,8 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
             bpy.context.view_layer.objects.active = arma
             arma.data.bones.active = arma.data.bones[bone_name]
             coordinates_world = bpy.context.active_bone.matrix_local @ Vector(b_sphere[2:5])
-            boneSphereRadius = b_sphere[1]
-            bpy.ops.physx.add_collision_sphere(radius = boneSphereRadius/100, location = coordinates_world)
+            boneSphereRadius = b_sphere[1]*[1,0.01][scale_down]
+            bpy.ops.physx.add_collision_sphere(radius = boneSphereRadius, location = coordinates_world, use_location = True)
             sphere_names.append(bpy.context.active_object.name)
     
     #%% BoneCapsules
@@ -275,14 +267,12 @@ def read_hairworks(context, filepath, rotate_180, scale_down, minimal_armature):
         assert(len(pinConstraints_flat) == numPinConstraints * 14)
         for i in range(0,len(pinConstraints_flat), 14):
             boneSphereIndex = int(pinConstraints_flat[i])
-            boneSphereRadius = float(pinConstraints_flat[i+1])
+            boneSphereRadius = float(pinConstraints_flat[i+1])*[1,0.01][scale_down]
             boneSphereLocalPos = np.array([float(x) for x in pinConstraints_flat[i+2:i+5]])
             bone_name = boneNames[boneSphereIndex]
             bpy.context.view_layer.objects.active = arma
             arma.data.bones.active = arma.data.bones[bone_name]
             coordinates_world = bpy.context.active_bone.matrix_local @ Vector(boneSphereLocalPos)
-            bpy.ops.physx.add_pin_sphere(radius = boneSphereRadius/100, location = coordinates_world)
-
-    bpy.context.view_layer.active_layer_collection = parent_coll
+            bpy.ops.physx.add_pin_sphere(radius = boneSphereRadius, location = coordinates_world, use_location = True)
     
     pass
