@@ -133,7 +133,7 @@ class ImportApx(Operator, ImportHelper):
         }
         
         section_icons = {
-            "General" : "WORLD", "Clothing" : "MATCLOTH", "Hairworks" : "HAIR_DATA"
+            "General" : "WORLD", "Clothing" : "MATCLOTH", "Hairworks" : "CURVE_DATA"
         }
         
         for section in sections:
@@ -215,7 +215,7 @@ class ExportApx(Operator, ExportHelper):
         }
 
         section_icons = {
-            "General": "WORLD", "Hairworks": "HAIR_DATA"
+            "General": "WORLD", "Hairworks": "CURVE_DATA"
         }
 
         for section in sections:
@@ -406,7 +406,7 @@ class PhysXMenu(bpy.types.Menu):
         layout.operator(AddCollisionSphere.bl_idname, text = "Add Collision Sphere", icon='MESH_UVSPHERE')
         layout.operator(AddSphereConnection.bl_idname, text = "Add Sphere Connection", icon='MESH_CAPSULE')
         layout.operator(AddPinSphere.bl_idname, text = "Add Pin Sphere (Hairworks)", icon='MESH_UVSPHERE')
-        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='HAIR')
+        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='CURVE_DATA')
         layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair (Hairworks)", icon='CURVE_DATA')
         layout.operator(HaircardCurve.bl_idname, text = "Create Curves from Haircard Mesh (Hairworks)", icon='CURVE_DATA')
         

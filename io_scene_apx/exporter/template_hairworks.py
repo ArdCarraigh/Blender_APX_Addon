@@ -74,7 +74,7 @@ template_hairworks = '''<!DOCTYPE NvParameters>
             {boneCapsuleIndices}
         </array>
         <value name="numPinConstraints" type="U32">{numPinConstraints}</value>
-        <array name="pinConstraints" size="{numPinConstraints}" type="Struct" structElements="boneSphereIndex(I32),boneSphereRadius(F32),boneSphereLocalPos(Vec3)">
+        <array name="pinConstraints" size="{numPinConstraints}" type="Struct" structElements="boneSphereIndex(I32),boneSphereRadius(F32),boneSphereLocalPos(Vec3),pinStiffness(F32),influenceFallOff(F32),useDynamicPin(Bool),doLra(Bool),useStiffnessPin(Bool),influenceFallOffCurve(Vec4)">
             {pinConstraints}
         </array>
         <value name="sceneUnit" type="F32">1</value>
@@ -84,7 +84,7 @@ template_hairworks = '''<!DOCTYPE NvParameters>
 </value>
 <value name="" type="Ref" className="HairInstanceDescriptor" version="1.1" checksum="">
   <struct name="">
-    <array name="materials" size="1" type="Struct">
+    <array name="materials" size="4" type="Struct">
       <struct>
         <value name="name" null="1" type="String"></value>
         <value name="densityTextureChan" type="U32">0</value>

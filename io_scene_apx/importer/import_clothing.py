@@ -47,7 +47,7 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
         
     # Join the armatures made for each bone together
     JoinThem(armaNames)
-    arma = bpy.context.active_object
+    arma = bpy.context.active_object   
     
     # Parenting Bones
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -311,10 +311,17 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
                     bpy.context.active_object.vertex_groups[boneNames[indices[l]]].add([k], weights[l], 'REPLACE')
             
         # Copy vertex color data to Graphical Meshes
-        bpy.context.active_object.select_set(state=True)
         bpy.context.view_layer.objects.active = bpy.data.objects[finalMeshes_names[i]]
-        bpy.ops.object.data_transfer(data_type = "VCOL", vert_mapping='TOPOLOGY',layers_select_src='NAME', layers_select_dst='ALL', mix_mode='REPLACE', use_max_distance=True, max_distance=0.000001, use_reverse_transfer = True)
-        
+        bpy.context.active_object.modifiers.new(type='DATA_TRANSFER', name = "ClothingPaintTransfer")
+        paintModifier = bpy.context.active_object.modifiers[-1]
+        paintModifier.object = bpy.data.objects[physicalMeshes_names[-1]]
+        paintModifier.use_loop_data = True
+        paintModifier.data_types_loops = {'VCOL'}
+        paintModifier.loop_mapping = 'NEAREST_POLYNOR'
+        paintModifier.use_max_distance = True
+        paintModifier.max_distance = 0.000001
+        bpy.ops.object.modifier_apply(modifier = paintModifier.name)
+                        
         # Delete physical mesh if requested
         if rm_ph_me:
             bpy.context.view_layer.objects.active = None

@@ -84,7 +84,7 @@ def shape_hair_interp(context, steps):
             closestCurveIndex = whichClosestCoords(growthMesh.data.vertices[i].co[0:3], curveBases)
             
             # No interpolation for close curve 
-            diffBase = Vector((growthMesh.data.vertices[i].co[0:3])) - Vector((curves[closestCurveIndex].data.splines[0].points[0].co[0:3]))
+            diffBase = growthMesh.data.vertices[i].co - Vector((curves[closestCurveIndex].data.splines[0].points[0].co[0:3]))
             distBase = sqrt(diffBase[0]**2 + diffBase[1]**2 + diffBase[2]**2)
             if distBase <= dist_threshold or steps == 0:
                 for j in range(0,len(curves[closestCurveIndex].data.splines[0].points)):
