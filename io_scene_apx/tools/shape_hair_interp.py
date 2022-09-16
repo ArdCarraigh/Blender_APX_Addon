@@ -27,7 +27,7 @@ def getConnectedVertices(obj, vertex, steps):
                 connec_verts.extend(edge_verts)
         interest_verts = list(set(connec_verts))
         interest_verts = list(filter(lambda v: v!=vertex.index, interest_verts))
-    connected_vertices = interest_verts
+        connected_vertices = interest_verts
     return(connected_vertices)
 
 def shape_hair_interp(context, steps):

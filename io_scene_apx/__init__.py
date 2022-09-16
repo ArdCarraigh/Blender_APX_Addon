@@ -4,8 +4,8 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (1, 0),
-    "blender": (2, 92, 0),
+    "version": (2, 0),
+    "blender": (3, 22, 0),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
     "wiki_url": "https://github.com/ArdCarraigh/Blender_APX_Importer",
@@ -19,26 +19,23 @@ from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy_extras.object_utils import AddObjectHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, FloatVectorProperty, IntProperty
 from bpy.types import Operator
-from io_scene_apx.importer import import_clothing
-from io_scene_apx.importer import import_hairworks
+from io_scene_apx.importer import import_clothing, import_hairworks
 from io_scene_apx.importer.import_clothing import read_clothing
 from io_scene_apx.importer.import_hairworks import read_hairworks
-from io_scene_apx.exporter import export_hairworks
+from io_scene_apx.exporter import export_clothing, export_hairworks
 from io_scene_apx.exporter.export_hairworks import write_hairworks
-from io_scene_apx.tools import add_capsule
+from io_scene_apx.exporter.export_clothing import write_clothing
+from io_scene_apx.tools import add_capsule, add_sphere, add_connection, add_pin, create_curve, haircard_curve, shape_hair_interp, apply_drive, setup_physx, convert_capsule
 from io_scene_apx.tools.add_capsule import add_capsule
-from io_scene_apx.tools import add_sphere
 from io_scene_apx.tools.add_sphere import add_sphere
-from io_scene_apx.tools import add_connection
 from io_scene_apx.tools.add_connection import add_connection
-from io_scene_apx.tools import add_pin
 from io_scene_apx.tools.add_pin import add_pin
-from io_scene_apx.tools import create_curve
 from io_scene_apx.tools.create_curve import create_curve
-from io_scene_apx.tools import haircard_curve
 from io_scene_apx.tools.haircard_curve import haircard_curve
-from io_scene_apx.tools import shape_hair_interp
 from io_scene_apx.tools.shape_hair_interp import shape_hair_interp
+from io_scene_apx.tools.apply_drive import apply_drive
+from io_scene_apx.tools.setup_physx import setup_clothing, setup_hairworks
+from io_scene_apx.tools.convert_capsule import convert_capsule
 
 
 def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, rm_ph_me):
@@ -147,7 +144,7 @@ class ImportApx(Operator, ImportHelper):
         return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.rm_ph_me)
 
 
-def write_apx(context, filepath, type, resample_value, spline):
+def write_apx(context, filepath, type, resample_value, spline, maximumMaxDistance):
     print("running read_apx...")
     
     # Should work from all modes
@@ -158,6 +155,9 @@ def write_apx(context, filepath, type, resample_value, spline):
     
     if type == 'Hairworks':
         write_hairworks(context, filepath, resample_value, spline)
+        
+    if type == 'Clothing':
+        write_clothing(context, filepath, maximumMaxDistance)
     
     return {'FINISHED'}
 
@@ -203,30 +203,43 @@ class ExportApx(Operator, ExportHelper):
         max = 4,
         min = 1,
     )
+    
+    maximumMaxDistance: FloatProperty(
+        name = "Maximum Max Distance",
+        default = 1,
+        description = "Set the maximum max distance used by the clothing physical meshes",
+        max = 10,
+        min = 0.000001,
+    )
 
     def draw(self, context):
         layout = self.layout
 
-        sections = ["General", "Hairworks"]
+        sections = ["General", "Hairworks", "Clothing"]
 
         section_options = {
             "General": ["type"],
-            "Hairworks": ["resample_value", "spline"]
+            "Hairworks": ["resample_value", "spline"],
+            "Clothing": ["maximumMaxDistance"]
         }
 
         section_icons = {
-            "General": "WORLD", "Hairworks": "CURVE_DATA"
+            "General": "WORLD", "Hairworks": "CURVE_DATA", "Clothing": "MATCLOTH"
         }
 
-        for section in sections:
-            row = layout.row()
-            box = row.box()
-            box.label(text=section, icon=section_icons[section])
-            for prop in section_options[section]:
-                box.prop(self, prop)
+        row = layout.row()
+        box = row.box()
+        box.label(text="General", icon=section_icons["General"])
+        box.prop(self, section_options["General"][0])
+        
+        row = layout.row()
+        box = row.box()
+        box.label(text=self.type, icon=section_icons[self.type])
+        for prop in section_options[self.type]:
+            box.prop(self, prop)
 
     def execute(self, context):
-        return write_apx(context, self.filepath, self.type, self.resample_value, self.spline)
+        return write_apx(context, self.filepath, self.type, self.resample_value, self.spline, self.maximumMaxDistance)
     
 class AddCollisionCapsule(Operator):
     """Create a new Collision Capsule"""
@@ -395,6 +408,103 @@ class HaircardCurve(Operator):
         haircard_curve(context)
         return {'FINISHED'}
     
+class ApplyDrive(Operator):
+    """Apply Drive Paint to Latch Paint"""
+    bl_idname = "physx.apply_drive"
+    bl_label = "Apply Drive Paint to Latch Paint"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    invert: BoolProperty(
+        name="Invert",
+        default = False,
+        description="Apply Latch Paint to Drive Paint instead"
+    )
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        apply_drive(context, self.invert)
+        return {'FINISHED'}
+    
+class SetupHairworks(Operator):
+    """Set Up a Hairworks Asset"""
+    bl_idname = "physx.setup_hairworks"
+    bl_label = "Set Up a Hairworks Asset"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        setup_hairworks(context)
+        return {'FINISHED'}
+    
+class SetupClothing(Operator):
+    """Set Up a Clothing Asset"""
+    bl_idname = "physx.setup_clothing"
+    bl_label = "Set Up a Clothing Asset"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        setup_clothing(context)
+        return {'FINISHED'}
+    
+class ConvertCapsuleToSphere(Operator):
+    """Convert Collision Capsules to Collision Spheres and Connections"""
+    bl_idname = "physx.convert_collision_capsule"
+    bl_label = "Convert Collision Capsules to Collision Spheres and Connections"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        convert_capsule(context)
+        return {'FINISHED'}
+    
+class PhysXSetupSubMenu(bpy.types.Menu):
+    bl_label = "Set Up"
+    bl_idname = "VIEW3D_MT_object_PhysX_menu_Setup"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator(SetupClothing.bl_idname, text = "Set Up a Clothing Asset", icon="MATCLOTH")
+        layout.operator(SetupHairworks.bl_idname, text = "Set Up a Hairworks Asset", icon='CURVE_DATA')
+        
+class PhysXCollisionsSubMenu(bpy.types.Menu):
+    bl_label = "Collisions"
+    bl_idname = "VIEW3D_MT_object_PhysX_menu_Collisions"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator(AddCollisionCapsule.bl_idname, text = "Add Collision Capsule (Clothing)", icon='MESH_CAPSULE')
+        layout.operator(ConvertCapsuleToSphere.bl_idname, text = "Convert Collision Capsules (Clothing)", icon='MESH_CAPSULE')
+        layout.operator(AddCollisionSphere.bl_idname, text = "Add Collision Sphere", icon='MESH_UVSPHERE')
+        layout.operator(AddSphereConnection.bl_idname, text = "Add Sphere Connection", icon='MESH_CAPSULE')
+        layout.operator(AddPinSphere.bl_idname, text = "Add Pin Sphere (Hairworks)", icon='MESH_UVSPHERE')
+        
+class PhysXToolsSubMenu(bpy.types.Menu):
+    bl_label = "Tools"
+    bl_idname = "VIEW3D_MT_object_PhysX_menu_Tools"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator(ApplyDrive.bl_idname, text = "Apply to Drive Paint to Latch Paint (Clothing)", icon="MATCLOTH")
+        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='CURVE_DATA')
+        layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair (Hairworks)", icon='CURVE_DATA')
+        layout.operator(HaircardCurve.bl_idname, text = "Create Curves from Haircard Mesh (Hairworks)", icon='CURVE_DATA')
+    
 class PhysXMenu(bpy.types.Menu):
     bl_label = "PhysX"
     bl_idname = "VIEW3D_MT_object_PhysX_menu"
@@ -402,15 +512,13 @@ class PhysXMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator(AddCollisionCapsule.bl_idname, text = "Add Collision Capsule (Clothing)", icon='MESH_CAPSULE')
-        layout.operator(AddCollisionSphere.bl_idname, text = "Add Collision Sphere", icon='MESH_UVSPHERE')
-        layout.operator(AddSphereConnection.bl_idname, text = "Add Sphere Connection", icon='MESH_CAPSULE')
-        layout.operator(AddPinSphere.bl_idname, text = "Add Pin Sphere (Hairworks)", icon='MESH_UVSPHERE')
-        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='CURVE_DATA')
-        layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair (Hairworks)", icon='CURVE_DATA')
-        layout.operator(HaircardCurve.bl_idname, text = "Create Curves from Haircard Mesh (Hairworks)", icon='CURVE_DATA')
+        layout.menu(PhysXSetupSubMenu.bl_idname)
+        layout.separator()
+        layout.menu(PhysXCollisionsSubMenu.bl_idname)
+        layout.separator()
+        layout.menu(PhysXToolsSubMenu.bl_idname)
         
-CLASSES = [ImportApx, ExportApx, AddCollisionCapsule, AddCollisionSphere, AddSphereConnection, AddPinSphere, ShapeHairInterp, CreateCurve, HaircardCurve, PhysXMenu]
+CLASSES = [ImportApx, ExportApx, AddCollisionCapsule, AddCollisionSphere, AddSphereConnection, AddPinSphere, ShapeHairInterp, CreateCurve, HaircardCurve, ApplyDrive, SetupHairworks, SetupClothing, ConvertCapsuleToSphere, PhysXMenu, PhysXSetupSubMenu, PhysXCollisionsSubMenu, PhysXToolsSubMenu]
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_import(self, context):

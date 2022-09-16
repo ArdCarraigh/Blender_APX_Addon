@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# exporter/export_clothing.py
+# exporter/export_hairworks.py
 
 import bpy
 from math import sqrt
@@ -145,14 +145,9 @@ def write_hairworks(context, filepath, resample_value, spline):
         for li in face.loop_indices:
             UVs.append(uv_layer[li].uv) 
     kwargs['n_UVs'] = len(UVs)
-    kwargs['UVs'] = ', '.join(' '.join(map(str, [uv.x, 1-uv.y])) for uv in UVs)  # Not sure about this one, (1-uv.y)
-                                                                                    # but it seems Maya exporter does something like that
-                                                                                    # since I had to perform operations on its exported UV
-                                                                                    # to get the original uv back 
+    kwargs['UVs'] = ', '.join(' '.join(map(str, [uv.x, 1-uv.y])) for uv in UVs)
     
     #%% numBones 
-    bones = []
-    poseBones = []
     usedBones = []
     boneIndex = {}
     boneIndex_value = 0
@@ -194,29 +189,24 @@ def write_hairworks(context, filepath, resample_value, spline):
     #%% boneNameList
     kwargs['boneNameList'] = '\n            '.join('<value type="String">{}</value>'.format(bone.name) for bone in usedBones)
 
-
     #%% bindPoses
     poses = []
     for bone in usedBones:
-        for index, pose in enumerate(poseBones):
-            if bone.name == pose.name:
-                par_mat_inv = bones[bone.name].parent.matrix_local.inverted_safe() if bones[bone.name].parent and bones[bone.name].use_relative_parent else Matrix()
-                matrix = par_mat_inv @ bones[bone.name].matrix_local
-                if bones[bone.name].parent is not None and bones[bone.name].use_relative_parent:
-                    matrix = ctxt_object.matrix_parent_inverse.inverted() * bones[bone.name].parent.matrix_local * matrix
-                matrix.transpose()
-                poses.append(matrix)
+        par_mat_inv = bone.parent.matrix_local.inverted_safe() if bone.parent and bone.use_relative_parent else Matrix()
+        matrix = par_mat_inv @ bone.matrix_local
+        if bone.parent is not None and bone.use_relative_parent:
+            matrix = ctxt_object.matrix_parent_inverse.inverted() * bone.parent.matrix_local * matrix
+        matrix.transpose()
+        poses.append(matrix)
     kwargs['bindPoses'] = ', '.join(' '.join(map(str, np.array(matrix).flat)) for matrix in poses)
     
     #%% num_boneParents boneParents
     boneParents = []
-    for pose in poseBones:
-        if pose.parent is not None:
-            for index, bone in enumerate(usedBones):
-                if pose.parent.name == bone.name:
-                    boneParents.append(ctxt_object.vertex_groups[bone.name].index)
+    for bone in usedBones:
+        if bone.parent is not None:
+            boneParents.append(boneIndex[bone.parent.name])
         else:
-            boneParents.append (-1)
+            boneParents.append(-1)
     kwargs['num_boneParents'] = len(boneParents)
     kwargs['boneParents'] = ' '.join(map(str, boneParents))
     
