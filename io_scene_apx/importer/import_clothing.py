@@ -127,10 +127,10 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
                     assert (len(boneWeights) == numVertices)
                 elif bufferFormats[k] == 'SEMANTIC_COLOR':
                     vertexColor_text = find_elem(buffer, "array", "name", "data").text
-                    vertexColor = to_array(vertexColor_text, int, [-1, 4])
+                    vertexColor = to_array(vertexColor_text, float, [-1, 4])
                     for vert in vertexColor:
-                        for col in vert:
-                            col = col / 255
+                        for z in range(len(vert)):
+                            vert[z] = vert[z] / 255
                     assert (len(vertexColor) == numVertices)
             faces_text = find_elem(SubMeshes[j][0], "array", "name", "indexBuffer").text
             faces = to_array(faces_text, int, [-1, 3])

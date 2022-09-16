@@ -72,6 +72,7 @@ def getClosestNumber(int, intList):
     
 def write_clothing(context, filepath, maximumMaxDistance):
     kwargs = {}
+    parent_coll = bpy.context.view_layer.active_layer_collection
     
     # Get transforms of the armature
     if bpy.context.active_object.parent.type == "ARMATURE":
@@ -124,12 +125,12 @@ def write_clothing(context, filepath, maximumMaxDistance):
     spheresBool = []
     capsulesBool = []
     collisionVolumesBool = []
-    if "Collision Spheres" in bpy.context.view_layer.active_layer_collection.collection.children:
-        spheres = bpy.context.view_layer.active_layer_collection.collection.children['Collision Spheres'].objects
+    if "Collision Spheres" in parent_coll.collection.children:
+        spheres = parent_coll.collection.children['Collision Spheres'].objects
         for bone in usedBones:
             spheresBool.append(bone.name in [v[v.find("_")+1:v.rfind("_")] for v in [x.name for x in spheres]])
-    if "Collision Capsules" in bpy.context.view_layer.active_layer_collection.collection.children:
-        capsules = bpy.context.view_layer.active_layer_collection.collection.children['Collision Capsules'].objects
+    if "Collision Capsules" in parent_coll.collection.children:
+        capsules = parent_coll.collection.children['Collision Capsules'].objects
         for bone in usedBones:
             capsulesBool.append(bone.name in [v[v.find("_")+1:v.rfind("_")] for v in [x.name for x in capsules]])
     
@@ -581,8 +582,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
     kwargs['numBoneSphereConnections'] = "0"
     kwargs['boneSphereConnections'] = ""
     boneSphereConnections = []
-    if "Collision Spheres Connections" and "Collision Spheres" in bpy.context.view_layer.active_layer_collection.collection.children:
-        connections = bpy.context.view_layer.active_layer_collection.collection.children['Collision Spheres Connections'].objects
+    if "Collision Spheres Connections" in parent_coll.collection.children and "Collision Spheres" in parent_coll.collection.children:
+        connections = parent_coll.collection.children['Collision Spheres Connections'].objects
         if len(connections) > 0:
             for connection in connections:
                 sphereName1 = connection.name[:connection.name.find("_to_")]

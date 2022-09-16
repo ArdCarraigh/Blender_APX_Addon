@@ -20,6 +20,7 @@ def getClosest(vec, vecList):
 
 
 def write_hairworks(context, filepath, resample_value, spline):
+    parent_coll = bpy.context.view_layer.active_layer_collection
     kwargs = {}
     
     # Get transforms of the armature
@@ -219,8 +220,8 @@ def write_hairworks(context, filepath, resample_value, spline):
     sphereRadius = []
     sphereVec3 = []
     sphereAll = []
-    if "Collision Spheres" in bpy.context.view_layer.active_layer_collection.collection.children:
-        spheres = bpy.context.view_layer.active_layer_collection.collection.children['Collision Spheres'].objects
+    if "Collision Spheres" in parent_coll.collection.children:
+        spheres = parent_coll.collection.children['Collision Spheres'].objects
         if len(spheres) > 0:
             for sphere in spheres:
                 bpy.context.view_layer.objects.active = None
@@ -259,8 +260,8 @@ def write_hairworks(context, filepath, resample_value, spline):
     kwargs['numBoneCapsuleIndices'] = "0"
     kwargs['boneCapsuleIndices'] = ""
     boneCapsules = []
-    if "Collision Spheres Connections" and "Collision Spheres" in bpy.context.view_layer.active_layer_collection.collection.children:
-        connections = bpy.context.view_layer.active_layer_collection.collection.children['Collision Spheres Connections'].objects
+    if "Collision Spheres Connections" in parent_coll.collection.children and "Collision Spheres" in parent_coll.collection.children:
+        connections = parent_coll.collection.children['Collision Spheres Connections'].objects
         if len(connections) > 0:
             for connection in connections:
                 sphereName1 = connection.name[:connection.name.find("_to_")]
@@ -279,8 +280,8 @@ def write_hairworks(context, filepath, resample_value, spline):
     pinRadius = []
     pinVec3 = []
     pinAll = []
-    if "Pin Constraints" in bpy.context.view_layer.active_layer_collection.collection.children:
-        pins = bpy.context.view_layer.active_layer_collection.collection.children['Pin Constraints'].objects
+    if "Pin Constraints" in parent_coll.collection.children:
+        pins = parent_coll.collection.children['Pin Constraints'].objects
         if len(pins) > 0:
             for pin in pins:
                 bpy.context.view_layer.objects.active = None
