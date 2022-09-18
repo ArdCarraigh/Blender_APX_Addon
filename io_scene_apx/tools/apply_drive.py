@@ -7,23 +7,21 @@ from io_scene_apx.exporter.export_clothing import CheckPhysicalPaint
 
 def apply_drive(context, invert):
     obj = bpy.context.active_object
-    if obj.type == 'MESH' and "Drive" in obj.data.vertex_colors and "Latch" in obj.data.vertex_colors:
+    if obj.type == 'MESH' and "Drive" in obj.data.color_attributes and "Latch" in obj.data.color_attributes:
         
         if not invert:
-            for face in obj.data.polygons:
-                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                    if CheckPhysicalPaint(obj.data.vertex_colors["Drive"].data[loop_idx].color, 0.1):
-                        obj.data.vertex_colors["Drive"].data[loop_idx].color = (1,1,1,1)
-                        obj.data.vertex_colors["Latch"].data[loop_idx].color = (1,0,1,1)
-                    else:
-                        obj.data.vertex_colors["Latch"].data[loop_idx].color = (1,1,1,1)
-                        obj.data.vertex_colors["Drive"].data[loop_idx].color = (1,0,1,1)
+            for vert in obj.data.vertices:
+                if CheckPhysicalPaint(obj.data.color_attributes["Drive"].data[vert.index].color, 0.1):
+                    obj.data.color_attributes["Drive"].data[vert.index].color = (1,1,1,1)
+                    obj.data.color_attributes["Latch"].data[vert.index].color = (1,0,1,1)
+                else:
+                    obj.data.color_attributes["Latch"].data[vert.index].color = (1,1,1,1)
+                    obj.data.color_attributes["Drive"].data[vert.index].color = (1,0,1,1)
         else:
-            for face in obj.data.polygons:
-                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                    if CheckPhysicalPaint(obj.data.vertex_colors["Latch"].data[loop_idx].color, 0.1):
-                        obj.data.vertex_colors["Latch"].data[loop_idx].color = (1,1,1,1)
-                        obj.data.vertex_colors["Drive"].data[loop_idx].color = (1,0,1,1)
-                    else:
-                        obj.data.vertex_colors["Drive"].data[loop_idx].color = (1,1,1,1)
-                        obj.data.vertex_colors["Latch"].data[loop_idx].color = (1,0,1,1)    
+            for vert in obj.data.vertices:
+                if CheckPhysicalPaint(obj.data.color_attributes["Latch"].data[vert.index].color, 0.1):
+                    obj.data.color_attributes["Latch"].data[vert.index].color = (1,1,1,1)
+                    obj.data.color_attributes["Drive"].data[vert.index].color = (1,0,1,1)
+                else:
+                    obj.data.color_attributes["Drive"].data[vert.index].color = (1,1,1,1)
+                    obj.data.color_attributes["Latch"].data[vert.index].color = (1,0,1,1)    

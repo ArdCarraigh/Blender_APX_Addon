@@ -138,9 +138,10 @@ def shape_hair_interp(context, steps):
                         mean_x += all_x[k] * weight_all[k]
                         mean_y += all_y[k] * weight_all[k]
                         mean_z += all_z[k] * weight_all[k]
-                    mean_x = mean_x/sum_weight
-                    mean_y = mean_y/sum_weight
-                    mean_z = mean_z/sum_weight
+                    if sum_weight > 0:
+                        mean_x = mean_x/sum_weight
+                        mean_y = mean_y/sum_weight
+                        mean_z = mean_z/sum_weight
                         
                     x_interp.append(mean_x)
                     y_interp.append(mean_y)

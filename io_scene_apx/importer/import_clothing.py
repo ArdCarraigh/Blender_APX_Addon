@@ -162,25 +162,23 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
                         
             # Vertex Color
             if 'vertexColor' in locals():
-                mesh.vertex_colors.new()
-                for face in mesh.polygons:
-                    for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                        mesh.vertex_colors.active.data[loop_idx].color = vertexColor[vert_idx]
+                mesh.color_attributes.new(name = 'Color', domain = 'POINT', type = 'BYTE_COLOR')
+                for vert in mesh.vertices:
+                    mesh.color_attributes.active.data[vert.index].color = vertexColor[vert.index]
                 del(vertexColor)
             
             #Clothing Paints
-            mesh.vertex_colors.new(name="MaximumDistance")
-            mesh.vertex_colors.new(name="BackstopRadius")
-            mesh.vertex_colors.new(name="BackstopDistance")
-            mesh.vertex_colors.new(name="Drive")
-            mesh.vertex_colors.new(name="Latch")
-            for face in mesh.polygons:
-                for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                        mesh.vertex_colors["MaximumDistance"].data[loop_idx].color = [0,1,0,1]
-                        mesh.vertex_colors["BackstopRadius"].data[loop_idx].color = [0,1,0,1]
-                        mesh.vertex_colors["BackstopDistance"].data[loop_idx].color = [0,1,0,1]
-                        mesh.vertex_colors["Drive"].data[loop_idx].color = [1,1,1,1]
-                        mesh.vertex_colors["Latch"].data[loop_idx].color = [1,0,1,1]
+            mesh.color_attributes.new(name = "MaximumDistance", domain = 'POINT', type = 'BYTE_COLOR')
+            mesh.color_attributes.new(name = "BackstopRadius", domain = 'POINT', type = 'BYTE_COLOR')
+            mesh.color_attributes.new(name = "BackstopDistance", domain = 'POINT', type = 'BYTE_COLOR')
+            mesh.color_attributes.new(name = "Drive", domain = 'POINT', type = 'BYTE_COLOR')
+            mesh.color_attributes.new(name = "Latch", domain = 'POINT', type = 'BYTE_COLOR')
+            for vert in mesh.vertices:
+                mesh.color_attributes["MaximumDistance"].data[vert.index].color = [0,1,0,1]
+                mesh.color_attributes["BackstopRadius"].data[vert.index].color = [0,1,0,1]
+                mesh.color_attributes["BackstopDistance"].data[vert.index].color = [0,1,0,1]
+                mesh.color_attributes["Drive"].data[vert.index].color = [1,1,1,1]
+                mesh.color_attributes["Latch"].data[vert.index].color = [1,0,1,1]
                     
             # Material
             if use_mat == True and materialNames[j] in bpy.data.materials:
@@ -275,23 +273,22 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
         #Tangents are read-only in Blender, we can't import them
                 
         # Apply Clothing Paints
-        mesh.vertex_colors.new(name="MaximumDistance")
-        mesh.vertex_colors.new(name="BackstopRadius")
-        mesh.vertex_colors.new(name="BackstopDistance")
-        for face in mesh.polygons:
-            for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                if constrainCoefficients[vert_idx][0] == 0:
-                    mesh.vertex_colors["MaximumDistance"].data[loop_idx].color = [1,0,1,1]
-                else:
-                    mesh.vertex_colors["MaximumDistance"].data[loop_idx].color = [constrainCoefficients[vert_idx][0]]*3+[1]
-                if constrainCoefficients[vert_idx][1] == 0:
-                    mesh.vertex_colors["BackstopRadius"].data[loop_idx].color = [1,0,1,1]
-                else:
-                    mesh.vertex_colors["BackstopRadius"].data[loop_idx].color = [constrainCoefficients[vert_idx][1]]*3+[1]
-                if constrainCoefficients[vert_idx][2] == 0:
-                    mesh.vertex_colors["BackstopDistance"].data[loop_idx].color = [1,0,1,1]
-                else:
-                    mesh.vertex_colors["BackstopDistance"].data[loop_idx].color = [constrainCoefficients[vert_idx][2]]*3+[1]
+        mesh.color_attributes.new(name = "MaximumDistance", domain = 'POINT', type = 'BYTE_COLOR')
+        mesh.color_attributes.new(name = "BackstopRadius", domain = 'POINT', type = 'BYTE_COLOR')
+        mesh.color_attributes.new(name = "BackstopDistance", domain = 'POINT', type = 'BYTE_COLOR')
+        for vert in mesh.vertices:
+            if constrainCoefficients[vert.index][0] == 0:
+                mesh.color_attributes["MaximumDistance"].data[vert.index].color = [1,0,1,1]
+            else:
+                mesh.color_attributes["MaximumDistance"].data[vert.index].color = [constrainCoefficients[vert.index][0]]*3+[1]
+            if constrainCoefficients[vert.index][1] == 0:
+                mesh.color_attributes["BackstopRadius"].data[vert.index].color = [1,0,1,1]
+            else:
+                mesh.color_attributes["BackstopRadius"].data[vert.index].color = [constrainCoefficients[vert.index][1]]*3+[1]
+            if constrainCoefficients[vert.index][2] == 0:
+                mesh.color_attributes["BackstopDistance"].data[vert.index].color = [1,0,1,1]
+            else:
+                mesh.color_attributes["BackstopDistance"].data[vert.index].color = [constrainCoefficients[vert.index][2]]*3+[1]
                 
         # Rotation of the mesh if requested
         if rotate_180:
@@ -318,9 +315,9 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
         bpy.context.active_object.modifiers.new(type='DATA_TRANSFER', name = "ClothingPaintTransfer")
         paintModifier = bpy.context.active_object.modifiers[-1]
         paintModifier.object = bpy.data.objects[physicalMeshes_names[-1]]
-        paintModifier.use_loop_data = True
-        paintModifier.data_types_loops = {'VCOL'}
-        paintModifier.loop_mapping = 'NEAREST_POLYNOR'
+        paintModifier.use_vert_data = True
+        paintModifier.data_types_verts = {'VCOL'}
+        paintModifier.vert_mapping = 'NEAREST'
         paintModifier.use_max_distance = True
         paintModifier.max_distance = 0.000001
         bpy.ops.object.modifier_apply(modifier = paintModifier.name)
@@ -338,17 +335,16 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
     # Interpret Drive/Latch
     for i in range(len(finalMeshes_names)):
         me = bpy.data.objects[finalMeshes_names[i]].data
-        for face in me.polygons:
-            for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                if me.vertex_colors["MaximumDistance"].data[loop_idx].color[1] > me.vertex_colors["MaximumDistance"].data[loop_idx].color[0]:
-                    me.vertex_colors["Latch"].data[loop_idx].color = [1,1,1,1]
-                    me.vertex_colors["Drive"].data[loop_idx].color = [1,0,1,1]
-                    me.vertex_colors["MaximumDistance"].data[loop_idx].color = [1,0,1,1]
-                    me.vertex_colors["BackstopRadius"].data[loop_idx].color = [1,0,1,1]
-                    me.vertex_colors["BackstopDistance"].data[loop_idx].color = [1,0,1,1]
-                else:
-                    me.vertex_colors["Drive"].data[loop_idx].color = [1,1,1,1]
-                    me.vertex_colors["Latch"].data[loop_idx].color = [1,0,1,1]
+        for vert in me.vertices:
+            if me.color_attributes["MaximumDistance"].data[vert.index].color[1] > me.color_attributes["MaximumDistance"].data[vert.index].color[0]:
+                me.color_attributes["Latch"].data[vert.index].color = [1,1,1,1]
+                me.color_attributes["Drive"].data[vert.index].color = [1,0,1,1]
+                me.color_attributes["MaximumDistance"].data[vert.index].color = [1,0,1,1]
+                me.color_attributes["BackstopRadius"].data[vert.index].color = [1,0,1,1]
+                me.color_attributes["BackstopDistance"].data[vert.index].color = [1,0,1,1]
+            else:
+                me.color_attributes["Drive"].data[vert.index].color = [1,1,1,1]
+                me.color_attributes["Latch"].data[vert.index].color = [1,0,1,1]
     
     # Collision Capsules
     boneActors_text = find_elem(ClothingAssetParameters, "array", "name", "boneActors").text

@@ -21,21 +21,20 @@ def setup_hairworks(context):
         bpy.ops.object.mode_set(mode='OBJECT')
         
         for vc in ["MaximumDistance", "BackstopRadius", "BackstopDistance", "Drive", "Latch"]:
-            if vc in growthMesh.data.vertex_colors:
-                growthMesh.data.vertex_colors.remove(growthMesh.data.vertex_colors[vc])
+            if vc in growthMesh.data.color_attributes:
+                growthMesh.data.color_attributes.remove(growthMesh.data.color_attributes[vc])
                 
 def setup_clothing(context):
     obj = bpy.context.active_object
     if obj.type == 'MESH':
         for vc in ["MaximumDistance", "BackstopRadius", "BackstopDistance", "Drive", "Latch"]:
-            if vc not in obj.data.vertex_colors:
-                obj.data.vertex_colors.new(name=vc)
-                for face in obj.data.polygons:
-                    for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-                        if vc in ["MaximumDistance", "BackstopRadius", "BackstopDistance", "Latch"]:
-                            obj.data.vertex_colors[vc].data[loop_idx].color = [1,0,1,1]
-                        elif vc == "Drive":
-                            obj.data.vertex_colors[vc].data[loop_idx].color = [1,1,1,1]
+            if vc not in obj.data.color_attributes:
+                obj.data.color_attributes.new(name=vc, domain = 'POINT', type = 'BYTE_COLOR')
+                for vert in obj.data.vertices:
+                    if vc in ["MaximumDistance", "BackstopRadius", "BackstopDistance", "Latch"]:
+                        obj.data.color_attributes[vc].data[vert.index].color = [1,0,1,1]
+                    elif vc == "Drive":
+                        obj.data.color_attributes[vc].data[vert.index].color = [1,1,1,1]
                 
         if not bpy.context.active_object.data.materials:
             temp_mat = bpy.data.materials.new(name="Material")

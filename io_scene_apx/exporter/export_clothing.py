@@ -3,7 +3,7 @@
 
 import bpy
 from math import sqrt
-from mathutils import Matrix, Euler
+from mathutils import Matrix, Euler, Vector
 from statistics import mean
 from io_scene_apx.exporter import template_clothing_bone, template_clothing_buffer_data, template_clothing_buffer_formats, template_clothing_graphical_mesh, template_clothing_main, template_clothing_material, template_clothing_physical_mesh, template_clothing_submesh
 from io_scene_apx.exporter.template_clothing_bone import templateBone
@@ -56,19 +56,34 @@ def Get3Bits(int):
 def getClosestInMesh(vertex, mesh):
     verts = []
     verts_coords = []
-    #connec = getConnectedVertices(mesh, vertex, 1)
     for v in mesh.data.vertices:
-        if vertex != v: # and v.index not in connec:
+        if vertex != v:
             verts.append(v.index)
             verts_coords.append(v.co)
     closest = getClosest(vertex.co, verts_coords)
     return verts[closest]
+
+def getSubmeshID(vertID, intervals):
+    id = -1
+    for i in range(len(intervals)):
+        if vertID >= intervals[i][0] and vertID <= intervals[i][1]:
+            id = i
+            break
+    return id
+
+def getProjectedVertex(vert_co, norm, origin):
+    return vert_co - norm.dot((vert_co - origin)) * norm
+
+def cart2bary(face, vert_co):
+    n = (face.id_data.vertices[face.vertices[1]].co - face.id_data.vertices[face.vertices[0]].co).cross((face.id_data.vertices[face.vertices[2]].co - face.id_data.vertices[face.vertices[0]].co))
+    na = (face.id_data.vertices[face.vertices[2]].co - face.id_data.vertices[face.vertices[1]].co).cross(vert_co - face.id_data.vertices[face.vertices[1]].co)
+    nb = (face.id_data.vertices[face.vertices[0]].co - face.id_data.vertices[face.vertices[2]].co).cross(vert_co - face.id_data.vertices[face.vertices[2]].co)
+    nc = (face.id_data.vertices[face.vertices[1]].co - face.id_data.vertices[face.vertices[0]].co).cross(vert_co - face.id_data.vertices[face.vertices[0]].co)
+    A = (n.dot(na))/n.length_squared
+    B = (n.dot(nb))/n.length_squared
+    C = (n.dot(nc))/n.length_squared
+    return [A,B,C]
     
-def getClosestNumber(int, intList):
-    int = np.asarray(int)
-    intList = np.asarray(intList)
-    diff = abs(intList - int)
-    return np.argmin(diff)
     
 def write_clothing(context, filepath, maximumMaxDistance):
     kwargs = {}
@@ -202,6 +217,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
         materials = []
         lodUsedBones = []
         numSubmesh = -1
+        submeshVertices = []
+        startVertex = 0
         for submesh in arma.children:
             if obj.name in submesh.name and obj.name != submesh.name:
                 bpy.context.view_layer.objects.active = None
@@ -225,6 +242,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
                     
                 kwargs_submesh = {}
                 kwargs_submesh["numVertices"] = len(submesh.data.vertices)
+                submeshVertices.append([startVertex, startVertex + len(submesh.data.vertices)-1])
+                startVertex += len(submesh.data.vertices)
                 bufferData = []
                 bufferFormats = []
                 
@@ -361,19 +380,17 @@ def write_clothing(context, filepath, maximumMaxDistance):
         # Duplication and preparation
         bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
         physicalMesh = bpy.context.active_object
-        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-        bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.mesh.remove_doubles()
-        bpy.ops.mesh.select_all(action="DESELECT")
-        bpy.ops.object.mode_set(mode='OBJECT')
         while physicalMesh.data.materials:
             physicalMesh.data.materials.pop(index = 0)
-        driveData = GetLoopDataPerVertex(physicalMesh, "VERTEXCOLOR", layername = "Drive")
+        driveData = []
         for vert in physicalMesh.data.vertices:
-            if not CheckPhysicalPaint(driveData[vert.index], 0.1):
+            driveData.append(copy.deepcopy(physicalMesh.data.color_attributes["Drive"].data[vert.index].color[:]))
+            if not CheckPhysicalPaint(driveData[-1], 0.1):
                 vert.select = True
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.delete(type='VERT')
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.remove_doubles()
         bpy.ops.mesh.select_all(action="DESELECT")
         bpy.ops.object.mode_set(mode='OBJECT')
         
@@ -397,9 +414,13 @@ def write_clothing(context, filepath, maximumMaxDistance):
         boneWeights = [x/np.linalg.norm(x, ord = 1) for x in boneWeights]
         
         # Constrain Coefficients
-        maximumDistance = GetLoopDataPerVertex(physicalMesh, "VERTEXCOLOR", layername = "MaximumDistance")
-        backstopRadius = GetLoopDataPerVertex(physicalMesh, "VERTEXCOLOR", layername = "BackstopRadius")
-        backstopDistance = GetLoopDataPerVertex(physicalMesh, "VERTEXCOLOR", layername = "BackstopDistance")
+        maximumDistance = []
+        backstopRadius = []
+        backstopDistance = []
+        for vert in physicalMesh.data.vertices:
+            maximumDistance.append(physicalMesh.data.color_attributes["MaximumDistance"].data[vert.index].color)
+            backstopRadius.append(physicalMesh.data.color_attributes["BackstopRadius"].data[vert.index].color)
+            backstopDistance.append(physicalMesh.data.color_attributes["BackstopDistance"].data[vert.index].color)
         constrainCoefficients = []
         for vert in physicalMesh.data.vertices:
             constrainCoefficients.append(np.zeros(3, dtype=float))
@@ -499,18 +520,47 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_lod['numSkinClothMap'] = 0
         kwargs_lod['immediateClothMap'] = ''
         kwargs_lod['skinClothMap'] = ''
-        kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength']/10
+        kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength']*0.1
+        kwargs_lod['physicsSubmeshPartitioning'] = ''
+        kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
         
-        driveDataMeshLod = GetLoopDataPerVertex(meshLod, "VERTEXCOLOR", layername = "Drive")
-        if all([CheckPhysicalPaint(driveDataMeshLod[vert.index], 0.1) for vert in meshLod.data.vertices]):
+        if all([CheckPhysicalPaint(driveData[vert.index], 0.1) for vert in meshLod.data.vertices]):
             immediateClothMap = [sortedVertices.index(getClosestInMesh(vert, physicalMesh))for vert in meshLod.data.vertices]
             kwargs_lod['numImmediateClothMap'] = len(immediateClothMap)
             kwargs_lod['immediateClothMap'] = ' '.join(map(str, immediateClothMap))
+            
+        else:
+            faceCenters = []
+            for face in physicalMesh.data.polygons:
+                faceCenters.append(face.center)
+            
+            skinClothMap = []
+            simulatedVertices = [[] for x in range(numSubmesh+1)]
+            simulatedVerticesAdditional = [[] for x in range(numSubmesh+1)]
+            for vert in meshLod.data.vertices:
+                closestFace = physicalMesh.data.polygons[getClosest(vert.co, faceCenters)]
+                if any(y>0 for y in [constrainCoefficients[x][0] for x in closestFace.vertices]):
+                    simulatedVertices[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
+                if any(x in sortedVertices[:numVertices-1] for x in closestFace.vertices):
+                    simulatedVerticesAdditional[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
+                vertProj = getProjectedVertex(vert.co, closestFace.normal, closestFace.center)
+                vertBary = cart2bary(closestFace, vertProj)
+                skinClothMap.append([' '.join(map(str, vertBary)), sortedVertices.index(closestFace.vertices[0]), 0,0, kwargs_lod['skinClothMapOffset'], sortedVertices.index(closestFace.vertices[1]), 0,0,0, sortedVertices.index(closestFace.vertices[2]), vert.index])
+            kwargs_lod['numSkinClothMap'] = len(skinClothMap)
+            kwargs_lod['skinClothMap'] = ','.join([' '.join(map(str, x)) for x in skinClothMap])
         
-        # physicsSubmeshPartitioning TODO
-        kwargs_lod['physicsSubmeshPartitioning'] = ''
-        kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
-
+            # physicsSubmeshPartitioning TODO
+            simulatedVerticesFlat = [y for x in simulatedVertices for y in x]
+            simulatedIndices = [0 for x in range(numSubmesh+1)]
+            for face in meshLod.data.polygons:
+                if any(x in simulatedVerticesFlat for x in face.vertices):
+                    simulatedIndices[getSubmeshID(face.vertices[0], submeshVertices)] += 3
+            physicsSubmeshPartitioning = []
+            for i in range(len(simulatedVertices)):
+                physicsSubmeshPartitioning.append([i, numLod, len(simulatedVertices[i]), len(simulatedVerticesAdditional[i]), simulatedIndices[i]])
+            kwargs_lod['numPhysicsSubmeshPartitioning'] = len(physicsSubmeshPartitioning)
+            kwargs_lod['physicsSubmeshPartitioning'] = ','.join([' '.join(map(str, x)) for x in physicsSubmeshPartitioning])
+            
         # Append Per Lod information
         physicalMeshes.append(templatePhysicalMesh.format(**kwargs_physical))
         graphicalLods.append(templateGraphicalMesh.format(**kwargs_lod))
@@ -607,12 +657,6 @@ def write_clothing(context, filepath, maximumMaxDistance):
             bpy.ops.object.select_all(action='DESELECT')
             bpy.context.view_layer.objects.active = capsule
             bpy.context.active_object.select_set(state=True)
-            capsuleRot = copy.deepcopy(capsule.rotation_euler)
-            capsuleRotation = Euler([x - y for (x, y) in zip(capsuleRot, armaRot)])
-            bpy.context.view_layer.objects.active = None
-            bpy.ops.object.select_all(action='DESELECT')
-            bpy.context.view_layer.objects.active = capsule
-            bpy.context.active_object.select_set(state=True)
             capsuleBoneName = capsule.name[capsule.name.find("_")+1:capsule.name.rfind("_")]
             capsuleBoneIndex.append(boneIndexInternal[capsuleBoneName])
             #Add a rigid body referenced for this bone
@@ -646,10 +690,13 @@ def write_clothing(context, filepath, maximumMaxDistance):
                         subCapsule.location = armaLoc
                         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
             if "capsuleRad" in locals():
-                del(capsuleRad)     
+                del(capsuleRad) 
             JoinThem(subCapsuleNames)
             capsuleHeight.append(sqrt((spherePositions[0][0]-spherePositions[1][0])**2 + (spherePositions[0][1]-spherePositions[1][1])**2 + (spherePositions[0][2]-spherePositions[1][2])**2))
             capsulePosition = [(x+y)/2 for (x, y) in zip(spherePositions[0], spherePositions[1])]
+            capsuleVector = spherePositions[0] - spherePositions[1]
+            capsuleBaseVector = Vector((0,-capsuleHeight[-1],0))
+            capsuleRotation = capsuleBaseVector.rotation_difference(capsuleVector)
             capsuleMat = capsuleRotation.to_matrix().to_4x4()
             capsuleMat.col[3] = capsulePosition + [1]
             boneMatrix = bones[capsuleBoneName].matrix_local

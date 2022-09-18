@@ -46,10 +46,10 @@ def add_capsule(context, radius, height, location, rotation, use_location):
     JoinThem(meshNames)
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     bpy.ops.mesh.remove_doubles()
-    #bpy.ops.transform.translate(value=location)
-    #bpy.ops.transform.rotate(value = rotation[0], orient_axis='X', constraint_axis=(True, False, False))
-    #bpy.ops.transform.rotate(value = rotation[1], orient_axis='Y', constraint_axis=(False, True, False))
-    #bpy.ops.transform.rotate(value = rotation[2], orient_axis='Z', constraint_axis=(False, False, True))
+    bpy.ops.transform.translate(value=location)
+    bpy.ops.transform.rotate(value = rotation[0], orient_axis='X', constraint_axis=(True, False, False))
+    bpy.ops.transform.rotate(value = rotation[1], orient_axis='Y', constraint_axis=(False, True, False))
+    bpy.ops.transform.rotate(value = rotation[2], orient_axis='Z', constraint_axis=(False, False, True))
     bpy.ops.object.mode_set(mode='OBJECT')
     
     num = 1
@@ -63,16 +63,11 @@ def add_capsule(context, radius, height, location, rotation, use_location):
     bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
     bpy.context.active_object.rotation_euler = boneRotation
     bpy.context.active_object.scale = boneScale
-    bpy.context.active_object.location = list(x for x in list(map(sum, zip(boneLocation,location))))
+    bpy.context.active_object.location = boneLocation
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.transform.resize(value = (1/boneScale[0], 1/boneScale[1], 1/boneScale[2]))
     bpy.ops.mesh.select_all(action="DESELECT")
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-    bpy.context.active_object.rotation_euler = rotation
-    bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-    bpy.context.active_object.rotation_euler = list(x for x in list(map(sum, zip(rotation,boneRotation))))
-    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
     bpy.context.view_layer.active_layer_collection = parent_coll

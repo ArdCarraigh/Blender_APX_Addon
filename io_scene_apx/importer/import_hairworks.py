@@ -28,6 +28,11 @@ def JoinThem(mesh_names):
         bpy.context.view_layer.objects.active = bpy.data.objects[mesh_names[j]]
         bpy.context.active_object.select_set(state=True)
     bpy.ops.object.join()
+    # Purge orphan data left by the joining
+    override = bpy.context.copy()
+    override["area.type"] = ['OUTLINER']
+    override["display_mode"] = ['ORPHAN_DATA']
+    bpy.ops.outliner.orphans_purge(override) 
 
 def read_hairworks(context, filepath, rotate_180, scale_down):
 
