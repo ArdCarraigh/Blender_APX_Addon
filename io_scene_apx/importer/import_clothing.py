@@ -12,7 +12,7 @@ from io_scene_apx.number_to_words import getWords
 from io_scene_apx.importer import import_hairworks
 from io_scene_apx.importer.import_hairworks import find_elem, to_array, JoinThem
 
-def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
+def read_clothing(context, filepath, use_mat, rotate_180, rm_ph_me):
 
     root = ET.parse(filepath).getroot() #NxParameters element
     ClothingAssetParameters = find_elem(root, "value", "className", "ClothingAssetParameters")[0] #extra [0] to index into <struct>
@@ -211,11 +211,6 @@ def read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me):
         # Join submeshes under the same lod
         JoinThem(mesh_names)
         finalMeshes_names.append(bpy.context.active_object.name)
-        # Remove doubles if requested
-        if rm_db:
-            bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-            bpy.ops.mesh.remove_doubles()
-            bpy.ops.object.mode_set(mode='OBJECT')
     
     # Physical Meshes
     PhysicalMeshes = find_elem(ClothingAssetParameters, "array", "name", "physicalMeshes")

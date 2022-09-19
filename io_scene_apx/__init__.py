@@ -38,7 +38,7 @@ from io_scene_apx.tools.setup_physx import setup_clothing, setup_hairworks
 from io_scene_apx.tools.convert_capsule import convert_capsule
 
 
-def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, rm_ph_me):
+def read_apx(context, filepath, use_mat, rotate_180, scale_down, rm_ph_me):
     print("running read_apx...")
     
     # Should work from all modes
@@ -59,7 +59,7 @@ def read_apx(context, filepath, rm_db, use_mat, rotate_180, scale_down, rm_ph_me
 
     # If PhysX Clothing type
     if type == 'cloth':
-        read_clothing(context, filepath, rm_db, use_mat, rotate_180, rm_ph_me)
+        read_clothing(context, filepath, use_mat, rotate_180, rm_ph_me)
 
     # If Hairworks type
     if type == 'hair':
@@ -87,12 +87,6 @@ class ImportApx(Operator, ImportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    
-    rm_db: BoolProperty(
-        name="Remove Doubles",
-        description="Remove double vertices of the imported meshes",
-        default=True,
-    )
     
     use_mat: BoolProperty(
         name="Prevent Material Duplication",
@@ -125,7 +119,7 @@ class ImportApx(Operator, ImportHelper):
         
         section_options = {
             "General" : ["rotate_180"], 
-            "Clothing" : ["rm_db", "use_mat", "rm_ph_me"], 
+            "Clothing" : ["use_mat", "rm_ph_me"], 
             "Hairworks" : ["scale_down"]
         }
         
@@ -141,7 +135,7 @@ class ImportApx(Operator, ImportHelper):
                 box.prop(self, prop)
                 
     def execute(self, context):
-        return read_apx(context, self.filepath, self.rm_db, self.use_mat, self.rotate_180, self.scale_down, self.rm_ph_me)
+        return read_apx(context, self.filepath, self.use_mat, self.rotate_180, self.scale_down, self.rm_ph_me)
 
 
 def write_apx(context, filepath, type, resample_value, spline, maximumMaxDistance):
