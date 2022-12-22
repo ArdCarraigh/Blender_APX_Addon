@@ -74,11 +74,11 @@ def getSubmeshID(vertID, intervals):
 def getProjectedVertex(vert_co, norm, origin):
     return vert_co - norm.dot((vert_co - origin)) * norm
 
-def cart2bary(face, vert_co):
-    n = (face.id_data.vertices[face.vertices[1]].co - face.id_data.vertices[face.vertices[0]].co).cross((face.id_data.vertices[face.vertices[2]].co - face.id_data.vertices[face.vertices[0]].co))
-    na = (face.id_data.vertices[face.vertices[2]].co - face.id_data.vertices[face.vertices[1]].co).cross(vert_co - face.id_data.vertices[face.vertices[1]].co)
-    nb = (face.id_data.vertices[face.vertices[0]].co - face.id_data.vertices[face.vertices[2]].co).cross(vert_co - face.id_data.vertices[face.vertices[2]].co)
-    nc = (face.id_data.vertices[face.vertices[1]].co - face.id_data.vertices[face.vertices[0]].co).cross(vert_co - face.id_data.vertices[face.vertices[0]].co)
+def cart2bary(mesh, face, vert_co):
+    n = (mesh.data.vertices[face[1]].co - mesh.data.vertices[face[0]].co).cross((mesh.data.vertices[face[2]].co - mesh.data.vertices[face[0]].co))
+    na = (mesh.data.vertices[face[2]].co - mesh.data.vertices[face[1]].co).cross(vert_co - mesh.data.vertices[face[1]].co)
+    nb = (mesh.data.vertices[face[0]].co - mesh.data.vertices[face[2]].co).cross(vert_co - mesh.data.vertices[face[2]].co)
+    nc = (mesh.data.vertices[face[1]].co - mesh.data.vertices[face[0]].co).cross(vert_co - mesh.data.vertices[face[0]].co)
     A = (n.dot(na))/n.length_squared
     B = (n.dot(nb))/n.length_squared
     C = (n.dot(nc))/n.length_squared
@@ -90,10 +90,11 @@ def write_clothing(context, filepath, maximumMaxDistance):
     parent_coll = bpy.context.view_layer.active_layer_collection
     
     # Get transforms of the armature
-    if bpy.context.active_object.parent.type == "ARMATURE":
-        arma = bpy.context.active_object.parent
-    elif bpy.context.active_object.type == "ARMATURE":
+    if bpy.context.active_object.type == "ARMATURE":
         arma = bpy.context.active_object
+    elif bpy.context.active_object.parent.type == "ARMATURE":
+        arma = bpy.context.active_object.parent
+    
     
     # Armature
     armaScale = copy.deepcopy(arma.scale)
@@ -530,22 +531,27 @@ def write_clothing(context, filepath, maximumMaxDistance):
             kwargs_lod['immediateClothMap'] = ' '.join(map(str, immediateClothMap))
             
         else:
-            faceCenters = []
-            for face in physicalMesh.data.polygons:
-                faceCenters.append(face.center)
+            #faceCenters = []
+            #for face in physicalMesh.data.polygons:
+            #    faceCenters.append(face.center)
             
             skinClothMap = []
             simulatedVertices = [[] for x in range(numSubmesh+1)]
             simulatedVerticesAdditional = [[] for x in range(numSubmesh+1)]
             for vert in meshLod.data.vertices:
-                closestFace = physicalMesh.data.polygons[getClosest(vert.co, faceCenters)]
-                if any(y>0 for y in [constrainCoefficients[x][0] for x in closestFace.vertices]):
+                closestVert = getClosestInMesh(vert, physicalMesh)
+                for face in faces_final:
+                    if closestVert in face:
+                        closestFace = face
+                        break
+                #closestFace = physicalMesh.data.polygons[getClosest(vert.co, faceCenters)]
+                if any([constrainCoefficients[x][0] > 0 for x in closestFace]):
                     simulatedVertices[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
-                if any(x in sortedVertices[:numVertices-1] for x in closestFace.vertices):
+                if any(x in sortedVertices[:numVertices-1] for x in closestFace):
                     simulatedVerticesAdditional[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
-                vertProj = getProjectedVertex(vert.co, closestFace.normal, closestFace.center)
-                vertBary = cart2bary(closestFace, vertProj)
-                skinClothMap.append([' '.join(map(str, vertBary)), sortedVertices.index(closestFace.vertices[0]), 0,0, kwargs_lod['skinClothMapOffset'], sortedVertices.index(closestFace.vertices[1]), 0,0,0, sortedVertices.index(closestFace.vertices[2]), vert.index])
+                vertProj = getProjectedVertex(vert.co, physicalMesh.data.vertices[closestVert].normal, physicalMesh.data.vertices[closestVert].co)
+                vertBary = cart2bary(physicalMesh, closestFace, vertProj)
+                skinClothMap.append([' '.join(map(str, vertBary)), sortedVertices.index(closestFace[0]), 0,0, kwargs_lod['skinClothMapOffset'], sortedVertices.index(closestFace[1]), 0,0,0, sortedVertices.index(closestFace[2]), vert.index])
             kwargs_lod['numSkinClothMap'] = len(skinClothMap)
             kwargs_lod['skinClothMap'] = ','.join([' '.join(map(str, x)) for x in skinClothMap])
         
