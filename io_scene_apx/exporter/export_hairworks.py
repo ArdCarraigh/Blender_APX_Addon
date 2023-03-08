@@ -10,14 +10,12 @@ import numpy as np
 import copy
 from bpy_extras.object_utils import object_data_add
 
-
 def getClosest(vec, vecList):
     vec = np.asarray(vec)
     vecList = np.asarray(vecList)
     diff = vecList - vec
     distance = np.linalg.norm(diff, axis=-1)
     return np.argmin(distance)
-
 
 def write_hairworks(context, filepath, resample_value, spline):
     parent_coll = bpy.context.view_layer.active_layer_collection
@@ -173,6 +171,7 @@ def write_hairworks(context, filepath, resample_value, spline):
                 boneIndices[-1][i] = boneIndex[ctxt_object.vertex_groups[g.group].name]
                 boneWeights[-1][i] = g.weight
                 i += 1
+    boneWeights = [x/np.linalg.norm(x, ord = 1) for x in boneWeights]
     kwargs['boneIndices'] = ', '.join(' '.join(map(str, x)) for x in boneIndices)
     kwargs['boneWeights'] = ', '.join(' '.join(map(str, x)) for x in boneWeights)
     
