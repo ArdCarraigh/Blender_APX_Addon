@@ -44,14 +44,17 @@ templatePhysicalMesh = '''<value type="Ref" included="1" className="ClothingPhys
 	        {physicalLods}
           </array>
           <array name="transitionUpB" size="0" type="Struct" structElements="vtxTetraBary(Vec3),vertexIndexPlusOffset(U32),nrmTetraBary(Vec3),faceIndex0(U32),tetraIndex(U32)"></array>
-          <array name="transitionUp" size="0" type="Struct" structElements="vertexBary(Vec3),vertexIndex0(U32),normalBary(Vec3),vertexIndex1(U32),tangentBary(Vec3),vertexIndex2(U32),vertexIndexPlusOffset(U32)">
+          <array name="transitionUp" size="{numTransitionUp}" type="Struct" structElements="vertexBary(Vec3),vertexIndex0(U32),normalBary(Vec3),vertexIndex1(U32),tangentBary(Vec3),vertexIndex2(U32),vertexIndexPlusOffset(U32)">
+            {transitionUp}
           </array>
-          <value name="transitionUpThickness" type="F32">0</value>
-          <value name="transitionUpOffset" type="F32">0</value>
+          <value name="transitionUpThickness" type="F32">{transitionUpThickness}</value>
+          <value name="transitionUpOffset" type="F32">{transitionUpOffset}</value>
           <array name="transitionDownB" size="0" type="Struct" structElements="vtxTetraBary(Vec3),vertexIndexPlusOffset(U32),nrmTetraBary(Vec3),faceIndex0(U32),tetraIndex(U32)"></array>
-          <array name="transitionDown" size="0" type="Struct" structElements="vertexBary(Vec3),vertexIndex0(U32),normalBary(Vec3),vertexIndex1(U32),tangentBary(Vec3),vertexIndex2(U32),vertexIndexPlusOffset(U32)"></array>
-          <value name="transitionDownThickness" type="F32">0</value>
-          <value name="transitionDownOffset" type="F32">0</value>
+          <array name="transitionDown" size="{numTransitionDown}" type="Struct" structElements="vertexBary(Vec3),vertexIndex0(U32),normalBary(Vec3),vertexIndex1(U32),tangentBary(Vec3),vertexIndex2(U32),vertexIndexPlusOffset(U32)">
+            {transitionDown}
+          </array>
+          <value name="transitionDownThickness" type="F32">{transitionDownThickness}</value>
+          <value name="transitionDownOffset" type="F32">{transitionDownOffset}</value>
           <value name="referenceCount" type="U32">1</value>
         </struct>
       </value>'''

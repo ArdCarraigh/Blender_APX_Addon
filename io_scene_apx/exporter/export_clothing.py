@@ -72,7 +72,8 @@ def getSubmeshID(vertID, intervals):
     return id
 
 def getProjectedVertex(vert_co, norm, origin):
-    return vert_co - norm.dot((vert_co - origin)) * norm
+    thickness = norm.dot((vert_co - origin))
+    return vert_co - thickness * norm, thickness
 
 def cart2bary(mesh, face, vert_co):
     n = (mesh.data.vertices[face[1]].co - mesh.data.vertices[face[0]].co).cross((mesh.data.vertices[face[2]].co - mesh.data.vertices[face[0]].co))
@@ -83,7 +84,6 @@ def cart2bary(mesh, face, vert_co):
     B = (n.dot(nb))/n.length_squared
     C = (n.dot(nc))/n.length_squared
     return [A,B,C]
-    
     
 def write_clothing(context, filepath, maximumMaxDistance):
     kwargs = {}
@@ -175,6 +175,12 @@ def write_clothing(context, filepath, maximumMaxDistance):
     # For each LOD
     simulationMaterials = []
     physicalMeshes = []
+    storedPhysicalMeshes = []
+    storedPhysicalMeshesDicts = []
+    storedPhysicalMeshesFacesFinal = []
+    storedPhysicalMeshesNormalOffsets = []
+    storedPhysicalMeshesAllNormals = []
+    storedPhysicalMeshesSortedVertices = []
     graphicalLods = []
     boundingBoxes = []
     numLod = -1
@@ -213,6 +219,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
         bpy.ops.mesh.separate(type='MATERIAL')
         
         #Loop through submeshes
+        all_Normals = []
+        all_Tangents = []
         submeshNames = []
         submeshes = []
         materials = []
@@ -267,9 +275,11 @@ def write_clothing(context, filepath, maximumMaxDistance):
                             numMeshReferenced[boneIndex[submesh.vertex_groups[g.group].name]] += 1
                             boneWeights[-1][i] = g.weight
                             i += 1
-                normals = GetLoopDataPerVertex(submesh, "NORMAL")
-                tangents = GetLoopDataPerVertex(submesh, "TANGENT")
                 boneWeights = [x/np.linalg.norm(x, ord = 1) for x in boneWeights]
+                normals = GetLoopDataPerVertex(submesh, "NORMAL")
+                all_Normals.extend(normals)
+                tangents = GetLoopDataPerVertex(submesh, "TANGENT")
+                all_Tangents.extend(tangents)
                                         
                 # Write Vertices' Position, Normal and Tangent Buffers
                 kwargs_vertices = {}
@@ -514,9 +524,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
             kwargs_physical['numPhysicalLods'] = 2
             kwargs_physical['physicalLods'] = ', '.join([' '.join(map(str,[0, 'PX_MAX_U32', 0, maximumMaxDistance])), ' '.join(map(str,[numVertices, 0, 1, 0]))])
         
-        #Transition UP/Down TODO
-        
-        # skinClothMap TODO
+        # skinClothMap
         kwargs_lod['numImmediateClothMap'] = 0
         kwargs_lod['numSkinClothMap'] = 0
         kwargs_lod['immediateClothMap'] = ''
@@ -525,16 +533,14 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_lod['physicsSubmeshPartitioning'] = ''
         kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
         
+        # Immediate Cloth Map
         if all([CheckPhysicalPaint(driveData[vert.index], 0.1) for vert in meshLod.data.vertices]):
             immediateClothMap = [sortedVertices.index(getClosestInMesh(vert, physicalMesh))for vert in meshLod.data.vertices]
             kwargs_lod['numImmediateClothMap'] = len(immediateClothMap)
             kwargs_lod['immediateClothMap'] = ' '.join(map(str, immediateClothMap))
-            
+        
+        # Or True Skin Cloth Map TOPERFECT   
         else:
-            #faceCenters = []
-            #for face in physicalMesh.data.polygons:
-            #    faceCenters.append(face.center)
-            
             skinClothMap = []
             simulatedVertices = [[] for x in range(numSubmesh+1)]
             simulatedVerticesAdditional = [[] for x in range(numSubmesh+1)]
@@ -544,20 +550,33 @@ def write_clothing(context, filepath, maximumMaxDistance):
                     if closestVert in face:
                         closestFace = face
                         break
-                #closestFace = physicalMesh.data.polygons[getClosest(vert.co, faceCenters)]
-                if any([constrainCoefficients[x][0] > 0 for x in closestFace]):
+                if all(x in simFaces for x in closestFace):
                     simulatedVertices[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
-                if any(x in sortedVertices[:numVertices-1] for x in closestFace):
-                    simulatedVerticesAdditional[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
-                vertProj = getProjectedVertex(vert.co, physicalMesh.data.vertices[closestVert].normal, physicalMesh.data.vertices[closestVert].co)
+                #if any(x in simFaces for x in closestFace):
+                #    simulatedVerticesAdditional[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
+                vertProj, vertThickness = getProjectedVertex(vert.co, physicalMesh.data.vertices[closestVert].normal, physicalMesh.data.vertices[closestVert].co)
                 vertBary = cart2bary(physicalMesh, closestFace, vertProj)
-                skinClothMap.append([' '.join(map(str, vertBary)), sortedVertices.index(closestFace[0]), 0,0, kwargs_lod['skinClothMapOffset'], sortedVertices.index(closestFace[1]), 0,0,0, sortedVertices.index(closestFace[2]), vert.index])
+                vertBary[2] = vertThickness
+                normPos = Vector((all_Normals[vert.index]))
+                normPos.length = kwargs_lod['skinClothMapOffset']
+                normProj, normThickness = getProjectedVertex(vert.co + normPos, physicalMesh.data.vertices[closestVert].normal, physicalMesh.data.vertices[closestVert].co)
+                normBary = cart2bary(physicalMesh, closestFace, normProj)
+                normBary[2] = normThickness
+                tangProj, tangThickness = getProjectedVertex(vert.co + Vector((all_Tangents[vert.index][0:3])), physicalMesh.data.vertices[closestVert].normal, physicalMesh.data.vertices[closestVert].co)
+                tangBary = cart2bary(physicalMesh, closestFace, tangProj)
+                tangBary[2] =  tangThickness
+                skinClothMap.append([' '.join(map(str, vertBary)), sortedVertices.index(closestFace[0]), ' '.join(map(str, normBary)), sortedVertices.index(closestFace[1]), ' '.join(map(str, tangBary)), sortedVertices.index(closestFace[2]), vert.index])
             kwargs_lod['numSkinClothMap'] = len(skinClothMap)
             kwargs_lod['skinClothMap'] = ','.join([' '.join(map(str, x)) for x in skinClothMap])
         
-            # physicsSubmeshPartitioning TODO
+            # physicsSubmeshPartitioning TOPERFECT
             simulatedVerticesFlat = [y for x in simulatedVertices for y in x]
             simulatedIndices = [0 for x in range(numSubmesh+1)]
+            for face in meshLod.data.polygons:
+                if any(x in simulatedVerticesFlat for x in face.vertices):
+                    for vert in face.vertices:
+                        if vert not in simulatedVerticesAdditional[getSubmeshID(vert, submeshVertices)]:
+                            simulatedVerticesAdditional[getSubmeshID(vert, submeshVertices)].append(vert)
             for face in meshLod.data.polygons:
                 if any(x in simulatedVerticesFlat for x in face.vertices):
                     simulatedIndices[getSubmeshID(face.vertices[0], submeshVertices)] += 3
@@ -568,17 +587,88 @@ def write_clothing(context, filepath, maximumMaxDistance):
             kwargs_lod['physicsSubmeshPartitioning'] = ','.join([' '.join(map(str, x)) for x in physicsSubmeshPartitioning])
             
         # Append Per Lod information
-        physicalMeshes.append(templatePhysicalMesh.format(**kwargs_physical))
+        storedPhysicalMeshesDicts.append(kwargs_physical)
+        storedPhysicalMeshes.append(physicalMesh)
+        storedPhysicalMeshesFacesFinal.append(faces_final)
+        storedPhysicalMeshesNormalOffsets.append(kwargs_lod['skinClothMapOffset'])
+        storedPhysicalMeshesAllNormals.append(normals)
+        storedPhysicalMeshesSortedVertices.append(sortedVertices)
         graphicalLods.append(templateGraphicalMesh.format(**kwargs_lod))
         simulationMaterials.append(templateSimulationMaterial.format(**kwargs_materials))
         
-        # Delete the duplicate meshes
-        for me in [meshLod, physicalMesh]:
-            bpy.context.view_layer.objects.active = None
-            bpy.ops.object.select_all(action='DESELECT')
-            bpy.context.view_layer.objects.active = me
-            bpy.context.active_object.select_set(state=True)
-            bpy.ops.object.delete(use_global=False, confirm=False)
+        # Delete the duplicate graphical mesh
+        bpy.context.view_layer.objects.active = None
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = meshLod
+        bpy.context.active_object.select_set(state=True)
+        bpy.ops.object.delete(use_global=False, confirm=False)
+    
+    # Deal with Physical Meshes
+    for i in range(len(storedPhysicalMeshes)):
+        
+        # Transition Up/Down
+        storedPhysicalMeshesDicts[i]["numTransitionDown"] = 0
+        storedPhysicalMeshesDicts[i]["transitionDown"] = ""
+        storedPhysicalMeshesDicts[i]["transitionDownThickness"] = 0
+        storedPhysicalMeshesDicts[i]["transitionDownOffset"] = 0
+        storedPhysicalMeshesDicts[i]["numTransitionUp"] = 0
+        storedPhysicalMeshesDicts[i]["transitionUp"] = ""
+        storedPhysicalMeshesDicts[i]["transitionUpThickness"] = 0
+        storedPhysicalMeshesDicts[i]["transitionUpOffset"] = 0
+        if len(storedPhysicalMeshes) > 1:
+            if i < len(storedPhysicalMeshes)-1:
+                storedPhysicalMeshesDicts[i]["transitionUpThickness"] = 1
+                storedPhysicalMeshesDicts[i]["transitionUpOffset"] = storedPhysicalMeshesNormalOffsets[i+1]
+                transitionUp = []
+                for vert in storedPhysicalMeshes[i].data.vertices:
+                    closestVert = getClosestInMesh(vert, storedPhysicalMeshes[i+1])
+                    for face in storedPhysicalMeshesFacesFinal[i+1]:
+                        if closestVert in face:
+                            closestFace = face
+                            break
+                    vertProj, vertThickness = getProjectedVertex(vert.co, storedPhysicalMeshes[i+1].data.vertices[closestVert].normal, storedPhysicalMeshes[i+1].data.vertices[closestVert].co)
+                    vertBary = cart2bary(storedPhysicalMeshes[i+1], closestFace, vertProj)
+                    vertBary[2] = vertThickness
+                    normPos = Vector((storedPhysicalMeshesAllNormals[i][vert.index]))
+                    normPos.length = storedPhysicalMeshesDicts[i]["transitionUpOffset"]
+                    normProj, normThickness = getProjectedVertex(vert.co + normPos, storedPhysicalMeshes[i+1].data.vertices[closestVert].normal, storedPhysicalMeshes[i+1].data.vertices[closestVert].co)
+                    normBary = cart2bary(storedPhysicalMeshes[i+1], closestFace, normProj)
+                    normBary[2] = normThickness
+                    transitionUp.append([' '.join(map(str, vertBary)), storedPhysicalMeshesSortedVertices[i+1].index(closestFace[0]), ' '.join(map(str, normBary)), storedPhysicalMeshesSortedVertices[i+1].index(closestFace[1]), "PX_MAX_F32", "PX_MAX_F32", "PX_MAX_F32", storedPhysicalMeshesSortedVertices[i+1].index(closestFace[2]), storedPhysicalMeshesSortedVertices[i].index(vert.index)])
+                storedPhysicalMeshesDicts[i]["numTransitionUp"] = len(transitionUp)
+                storedPhysicalMeshesDicts[i]['transitionUp'] = ','.join([' '.join(map(str, x)) for x in transitionUp])
+            if i > 0:
+                storedPhysicalMeshesDicts[i]["transitionDownThickness"] = 1
+                storedPhysicalMeshesDicts[i]["transitionDownOffset"] = storedPhysicalMeshesNormalOffsets[i-1]
+                transitionDown = []
+                for vert in storedPhysicalMeshes[i].data.vertices:
+                    closestVert = getClosestInMesh(vert, storedPhysicalMeshes[i-1])
+                    for face in storedPhysicalMeshesFacesFinal[i-1]:
+                        if closestVert in face:
+                            closestFace = face
+                            break
+                    vertProj, vertThickness = getProjectedVertex(vert.co, storedPhysicalMeshes[i-1].data.vertices[closestVert].normal, storedPhysicalMeshes[i-1].data.vertices[closestVert].co)
+                    vertBary = cart2bary(storedPhysicalMeshes[i-1], closestFace, vertProj)
+                    vertBary[2] = vertThickness
+                    normPos = Vector((storedPhysicalMeshesAllNormals[i][vert.index]))
+                    normPos.length = storedPhysicalMeshesDicts[i]["transitionDownOffset"]
+                    normProj, normThickness = getProjectedVertex(vert.co + normPos, storedPhysicalMeshes[i-1].data.vertices[closestVert].normal, storedPhysicalMeshes[i-1].data.vertices[closestVert].co)
+                    normBary = cart2bary(storedPhysicalMeshes[i-1], closestFace, normProj)
+                    normBary[2] = normThickness
+                    transitionDown.append([' '.join(map(str, vertBary)), storedPhysicalMeshesSortedVertices[i-1].index(closestFace[0]), ' '.join(map(str, normBary)), storedPhysicalMeshesSortedVertices[i-1].index(closestFace[1]), "PX_MAX_F32", "PX_MAX_F32", "PX_MAX_F32", storedPhysicalMeshesSortedVertices[i-1].index(closestFace[2]), storedPhysicalMeshesSortedVertices[i].index(vert.index)])
+                storedPhysicalMeshesDicts[i]["numTransitionDown"] = len(transitionDown)
+                storedPhysicalMeshesDicts[i]['transitionDown'] = ','.join([' '.join(map(str, x)) for x in transitionDown])
+        
+        # Append Per Physical Lod information 
+        physicalMeshes.append(templatePhysicalMesh.format(**storedPhysicalMeshesDicts[i]))
+    
+    # Delete the physical meshes  
+    for me in storedPhysicalMeshes:
+        bpy.context.view_layer.objects.active = None
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = me
+        bpy.context.active_object.select_set(state=True)
+        bpy.ops.object.delete(use_global=False, confirm=False)
     
     # Write Mesh Information in Main Template
     kwargs['physicalMeshes'] = '\n      '.join(x for x in physicalMeshes)
