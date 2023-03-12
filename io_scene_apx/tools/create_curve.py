@@ -32,7 +32,7 @@ def create_curve(context):
         polyline = curveData.splines.new('POLY')
         polyline.points.add(len(hair.hair_keys) - 1)
         for j in range(len(hair.hair_keys)):
-            polyline.points[j].co = (*hair.hair_keys[j].co, 1)
+            polyline.points[j].co = (*hair.hair_keys[j].co_object(growthMesh, growthMesh.modifiers[-1], hair), 1)
         
         # Add the curves to the scene
         object_data_add(context, curveData)

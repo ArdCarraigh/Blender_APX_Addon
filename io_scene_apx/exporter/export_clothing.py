@@ -582,7 +582,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
                     simulatedIndices[getSubmeshID(face.vertices[0], submeshVertices)] += 3
             physicsSubmeshPartitioning = []
             for i in range(len(simulatedVertices)):
-                physicsSubmeshPartitioning.append([i, numLod, len(simulatedVertices[i]), len(simulatedVerticesAdditional[i]), simulatedIndices[i]])
+                physicsSubmeshPartitioning.append([i, 0, len(simulatedVertices[i]), len(simulatedVerticesAdditional[i]), simulatedIndices[i]])
             kwargs_lod['numPhysicsSubmeshPartitioning'] = len(physicsSubmeshPartitioning)
             kwargs_lod['physicsSubmeshPartitioning'] = ','.join([' '.join(map(str, x)) for x in physicsSubmeshPartitioning])
             

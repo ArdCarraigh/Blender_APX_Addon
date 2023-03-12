@@ -62,7 +62,7 @@ def write_hairworks(context, filepath, resample_value, spline):
         polyline = curveData.splines.new('POLY')
         polyline.points.add(len(hair.hair_keys) - 1)
         for j in range(len(hair.hair_keys)):
-            polyline.points[j].co = (*hair.hair_keys[j].co, 1)
+            polyline.points[j].co = (*hair.hair_keys[j].co_object(ctxt_object_temp, ctxt_object_temp.modifiers[-1], hair), 1)
         
         # Add the curves to the scene
         object_data_add(context, curveData)
@@ -112,9 +112,9 @@ def write_hairworks(context, filepath, resample_value, spline):
     hair_verts = [] #list of vertices of all hairs
     meshCoords = [] #root vertex of each guide hair
     for hair in hairs:
-        meshCoords.append(hair.hair_keys[0].co)
+        meshCoords.append(hair.hair_keys[0].co_object(ctxt_object, ctxt_object.modifiers[-1], hair))
         for key in hair.hair_keys:
-            hair_verts.append([key.co.x, key.co.y, key.co.z])
+            hair_verts.append(list(key.co_object(ctxt_object, ctxt_object.modifiers[-1], hair)))
     kwargs['hair_verts'] = ', '.join([' '.join(map(str, vert)) for vert in hair_verts])
     
     #%% endIndices
