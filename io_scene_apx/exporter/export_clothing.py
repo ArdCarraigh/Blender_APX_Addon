@@ -550,8 +550,10 @@ def write_clothing(context, filepath, maximumMaxDistance):
                     if closestVert in face:
                         closestFace = face
                         break
-                if all(x in simFaces for x in closestFace):
+                if constrainCoefficients[closestVert][0] > 0:
                     simulatedVertices[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
+                #if all(x in simFaces for x in closestFace):
+                #    simulatedVertices[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
                 #if any(x in simFaces for x in closestFace):
                 #    simulatedVerticesAdditional[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
                 vertProj, vertThickness = getProjectedVertex(vert.co, physicalMesh.data.vertices[closestVert].normal, physicalMesh.data.vertices[closestVert].co)
