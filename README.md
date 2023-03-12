@@ -1,6 +1,6 @@
 # Blender_APX_Addon
  Import/export .apx files into/from blender.
- Developed for Blender 3.3.0, other versions are not tested.
+ Developed for Blender 3.4.1, other versions are not tested.
 
  Clothing APX - Import:
  
