@@ -4,11 +4,11 @@
 
  Clothing APX - Import:
  
- [![APX Clothing Importer Video](https://yt-embed.herokuapp.com/embed?v=QH6N0Q8Ue74)](https://www.youtube.com/watch?v=QH6N0Q8Ue74)
+ [![APX Clothing Importer Video](https://i.ytimg.com/vi/QH6N0Q8Ue74/maxresdefault.jpg)](https://www.youtube.com/watch?v=QH6N0Q8Ue74)
  
  Hairworks APX - Export and Import:
  
- [![APX Hairworks Exporter Importer Video](https://yt-embed.herokuapp.com/embed?v=Q2ByGES0_-s)](https://www.youtube.com/watch?v=Q2ByGES0_-s)
+ [![APX Hairworks Exporter Importer Video](https://i.ytimg.com/vi/Q2ByGES0_-s/maxresdefault.jpg)](https://www.youtube.com/watch?v=Q2ByGES0_-s)
  
  Copyright (c) 2021 Ard Carraigh
  
