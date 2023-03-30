@@ -2,6 +2,7 @@
 # exporter/export_clothing.py
 
 import bpy
+import re
 from math import sqrt
 from mathutils import Matrix, Euler, Vector
 from statistics import mean
@@ -18,10 +19,10 @@ import numpy as np
 import copy
 from io_scene_apx.importer import import_hairworks
 from io_scene_apx.importer.import_hairworks import JoinThem
-from io_scene_apx.tools import shape_hair_interp
-from io_scene_apx.tools.shape_hair_interp import getConnectedVertices
 from io_scene_apx.exporter import export_hairworks
 from io_scene_apx.exporter.export_hairworks import getClosest
+from io_scene_apx.tools import setup_physx
+from io_scene_apx.tools.setup_physx import cleanUpDriveLatchGroups
 
 def GetLoopDataPerVertex(mesh, type, layername = None):
     vert_ids = []
@@ -53,11 +54,11 @@ def Get3Bits(int):
         bits = '0'+bits
     return bits
 
-def getClosestInMesh(vertex, mesh):
+def getClosestInMesh(vertex, mesh, filter = None):
     verts = []
     verts_coords = []
     for v in mesh.data.vertices:
-        if vertex != v:
+        if vertex != v and (filter is None or v.index in filter):
             verts.append(v.index)
             verts_coords.append(v.co)
     closest = getClosest(vertex.co, verts_coords)
@@ -207,14 +208,14 @@ def write_clothing(context, filepath, maximumMaxDistance):
         bpy.context.active_object.rotation_euler = [2*(np.pi)-x for x in armaRot]
         bpy.context.active_object.location = [-1*x for x in armaLoc] 
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        # Triangulate faces
+        # Triangulate Faces
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
         bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.quads_convert_to_tris(quad_method='SHORTEST_DIAGONAL', ngon_method='BEAUTY')
         bpy.ops.mesh.select_all(action="DESELECT")
         bpy.ops.object.mode_set(mode='OBJECT')
         # Apply Drive Paint
-        bpy.ops.physx.apply_drive(invert = False)
+        bpy.ops.physx.apply_drive(group="1", invert = False)
         # Split by materials
         bpy.ops.mesh.separate(type='MATERIAL')
         
@@ -298,7 +299,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
                 
                 # Get Vertex Color
                 for layer in submesh.data.vertex_colors:
-                    if layer.name not in ['MaximumDistance', 'BackstopRadius', 'BackstopDistance', 'Drive', 'Latch']:
+                    if not re.search('MaximumDistance|BackstopRadius|BackstopDistance|Drive|Latch', layer.name):
                         vcol = GetLoopDataPerVertex(submesh, "VERTEXCOLOR", layer.name)
                         # Write Vertex Color Buffer
                         kwargs_vcol = {}
@@ -393,10 +394,11 @@ def write_clothing(context, filepath, maximumMaxDistance):
         physicalMesh = bpy.context.active_object
         while physicalMesh.data.materials:
             physicalMesh.data.materials.pop(index = 0)
-        driveData = []
+        n_groups, driveDataGraphical, latchDataGraphical = cleanUpDriveLatchGroups(physicalMesh, True)
+        driveLatchGroupGraphical = []
         for vert in physicalMesh.data.vertices:
-            driveData.append(copy.deepcopy(physicalMesh.data.color_attributes["Drive"].data[vert.index].color[:]))
-            if not CheckPhysicalPaint(driveData[-1], 0.1):
+            driveLatchGroupGraphical.append(np.argmax(sum(np.array([driveDataGraphical[vert.index], latchDataGraphical[vert.index]]))) + 1)
+            if not any([x > 0.3 for x in driveDataGraphical[vert.index]]):
                 vert.select = True
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.delete(type='VERT')
@@ -425,28 +427,32 @@ def write_clothing(context, filepath, maximumMaxDistance):
         boneWeights = [x/np.linalg.norm(x, ord = 1) for x in boneWeights]
         
         # Constrain Coefficients
+        n_groups, driveDataPhysical, latchDataPhysical = cleanUpDriveLatchGroups(physicalMesh, True)
         maximumDistance = []
         backstopRadius = []
         backstopDistance = []
+        constrainCoefficients = []
+        driveLatchGroupPhysical = []
         for vert in physicalMesh.data.vertices:
             maximumDistance.append(physicalMesh.data.color_attributes["MaximumDistance"].data[vert.index].color)
             backstopRadius.append(physicalMesh.data.color_attributes["BackstopRadius"].data[vert.index].color)
             backstopDistance.append(physicalMesh.data.color_attributes["BackstopDistance"].data[vert.index].color)
-        constrainCoefficients = []
-        for vert in physicalMesh.data.vertices:
+            
             constrainCoefficients.append(np.zeros(3, dtype=float))
-            if CheckPhysicalPaint(maximumDistance[vert.index], 0.1):
-                constrainCoefficients[-1][0] = maximumDistance[vert.index][0] * maximumMaxDistance
+            if CheckPhysicalPaint(maximumDistance[-1], 0.1):
+                constrainCoefficients[-1][0] = maximumDistance[-1][0] * maximumMaxDistance
                 if constrainCoefficients[-1][0] == 0:
                     constrainCoefficients[-1][0] = 0.0001 * maximumMaxDistance
-            if CheckPhysicalPaint(backstopRadius[vert.index], 0.1):
-                constrainCoefficients[-1][1] = backstopRadius[vert.index][0]
+            if CheckPhysicalPaint(backstopRadius[-1], 0.1):
+                constrainCoefficients[-1][1] = backstopRadius[-1][0]
                 if constrainCoefficients[-1][1] == 0:
                     constrainCoefficients[-1][1] = 0.0001
-            if CheckPhysicalPaint(backstopDistance[vert.index], 0.1):
-                constrainCoefficients[-1][2] = backstopDistance[vert.index][0]
+            if CheckPhysicalPaint(backstopDistance[-1], 0.1):
+                constrainCoefficients[-1][2] = backstopDistance[-1][0]
                 if constrainCoefficients[-1][2] == 0:
                     constrainCoefficients[-1][2] = 0.0001
+                    
+            driveLatchGroupPhysical.append(np.argmax(sum(np.array([driveDataPhysical[vert.index], latchDataPhysical[vert.index]]))) + 1)
                     
         # Get Faces to order faces and vertices
         faces = []
@@ -534,7 +540,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
         
         # Immediate Cloth Map
-        if all([CheckPhysicalPaint(driveData[vert.index], 0.1) for vert in meshLod.data.vertices]):
+        if all([any([x > 0.3 for x in driveDataGraphical[vert.index]]) for vert in meshLod.data.vertices]):
             immediateClothMap = [sortedVertices.index(getClosestInMesh(vert, physicalMesh))for vert in meshLod.data.vertices]
             kwargs_lod['numImmediateClothMap'] = len(immediateClothMap)
             kwargs_lod['immediateClothMap'] = ' '.join(map(str, immediateClothMap))
@@ -545,7 +551,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
             simulatedVertices = [[] for x in range(numSubmesh+1)]
             simulatedVerticesAdditional = [[] for x in range(numSubmesh+1)]
             for vert in meshLod.data.vertices:
-                closestVert = getClosestInMesh(vert, physicalMesh)
+                filtered_verts = list(np.where(np.array(driveLatchGroupPhysical) == driveLatchGroupGraphical[vert.index])[0])
+                closestVert = getClosestInMesh(vert, physicalMesh, filtered_verts)
                 for face in faces_final:
                     if closestVert in face:
                         closestFace = face

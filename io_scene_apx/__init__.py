@@ -4,7 +4,7 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (2, 2),
+    "version": (2, 3),
     "blender": (3, 4, 1),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
@@ -25,7 +25,7 @@ from io_scene_apx.importer.import_hairworks import read_hairworks
 from io_scene_apx.exporter import export_clothing, export_hairworks
 from io_scene_apx.exporter.export_hairworks import write_hairworks
 from io_scene_apx.exporter.export_clothing import write_clothing
-from io_scene_apx.tools import add_capsule, add_sphere, add_connection, add_pin, create_curve, haircard_curve, shape_hair_interp, apply_drive, setup_physx, convert_capsule
+from io_scene_apx.tools import add_capsule, add_sphere, add_connection, add_pin, create_curve, haircard_curve, shape_hair_interp, apply_drive, setup_physx, convert_capsule, add_drive_latch_group
 from io_scene_apx.tools.add_capsule import add_capsule
 from io_scene_apx.tools.add_sphere import add_sphere
 from io_scene_apx.tools.add_connection import add_connection
@@ -36,6 +36,8 @@ from io_scene_apx.tools.shape_hair_interp import shape_hair_interp
 from io_scene_apx.tools.apply_drive import apply_drive
 from io_scene_apx.tools.setup_physx import setup_clothing, setup_hairworks
 from io_scene_apx.tools.convert_capsule import convert_capsule
+from io_scene_apx.tools.setup_physx import cleanUpDriveLatchGroups
+from io_scene_apx.tools.add_drive_latch_group import add_drive_latch_group
 
 
 def read_apx(context, filepath, use_mat, rotate_180, scale_down, rm_ph_me):
@@ -402,11 +404,23 @@ class HaircardCurve(Operator):
         haircard_curve(context)
         return {'FINISHED'}
     
+def getDriveLatchGroups(scene, context):
+    items=[]
+    n_groups = cleanUpDriveLatchGroups(bpy.context.active_object)
+    for i in range(n_groups):
+        items.append((str(i+1), "Group "+str(i+1), "Choose the group "+str(i+1)+" for applying drive/latch paint"))
+    return items
+    
 class ApplyDrive(Operator):
     """Apply Drive Paint to Latch Paint"""
     bl_idname = "physx.apply_drive"
     bl_label = "Apply Drive Paint to Latch Paint"
     bl_options = {'REGISTER', 'UNDO'}
+    
+    group: EnumProperty(
+        name="Drive/Latch Group",
+        items = getDriveLatchGroups
+    )
 
     invert: BoolProperty(
         name="Invert",
@@ -415,11 +429,31 @@ class ApplyDrive(Operator):
     )
     
     def execute(self, context):
-        if bpy.context.mode != 'OBJECT':
+        prev_mode = bpy.context.mode
+        if prev_mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        apply_drive(context, self.invert)
+        apply_drive(context, self.group, self.invert)
+        if prev_mode == "PAINT_VERTEX":
+            bpy.ops.object.mode_set(mode="VERTEX_PAINT")
+        return {'FINISHED'}
+    
+class AddDrive(Operator):
+    """Add a Drive/Latch Group"""
+    bl_idname = "physx.add_drive_latch_group"
+    bl_label = "Add a Drive/Latch Group"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        prev_mode = bpy.context.mode
+        if prev_mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        add_drive_latch_group(context)
+        if prev_mode == "PAINT_VERTEX":
+            bpy.ops.object.mode_set(mode="VERTEX_PAINT")
         return {'FINISHED'}
     
 class SetupHairworks(Operator):
@@ -486,7 +520,28 @@ class PhysXCollisionsSubMenu(bpy.types.Menu):
         layout.operator(AddCollisionSphere.bl_idname, text = "Add Collision Sphere", icon='MESH_UVSPHERE')
         layout.operator(AddSphereConnection.bl_idname, text = "Add Sphere Connection", icon='MESH_CAPSULE')
         layout.operator(AddPinSphere.bl_idname, text = "Add Pin Sphere (Hairworks)", icon='MESH_UVSPHERE')
+
+class PhysXToolsClothingSubMenu(bpy.types.Menu):
+    bl_label = "Clothing Tools"
+    bl_idname = "VIEW3D_MT_object_PhysX_menu_Tools_Clothing"
+    
+    def draw(self, context):
+        layout = self.layout
         
+        layout.operator(AddDrive.bl_idname, text = "Add a Drive/Latch Group", icon='MATCLOTH')
+        layout.operator(ApplyDrive.bl_idname, text = "Apply to Drive Paint to Latch Paint", icon="MATCLOTH")
+        
+class PhysXToolsHairSubMenu(bpy.types.Menu):
+    bl_label = "Hairworks Tools"
+    bl_idname = "VIEW3D_MT_object_PhysX_menu_Tools_Hair"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves", icon='CURVE_DATA')
+        layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair", icon='CURVE_DATA')
+        layout.operator(HaircardCurve.bl_idname, text = "Create Curves from Haircard Mesh", icon='CURVE_DATA')
+
 class PhysXToolsSubMenu(bpy.types.Menu):
     bl_label = "Tools"
     bl_idname = "VIEW3D_MT_object_PhysX_menu_Tools"
@@ -494,10 +549,9 @@ class PhysXToolsSubMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
         
-        layout.operator(ApplyDrive.bl_idname, text = "Apply to Drive Paint to Latch Paint (Clothing)", icon="MATCLOTH")
-        layout.operator(ShapeHairInterp.bl_idname, text = "Shape Hair from Curves (Hairworks)", icon='CURVE_DATA')
-        layout.operator(CreateCurve.bl_idname, text = "Create Curves from Hair (Hairworks)", icon='CURVE_DATA')
-        layout.operator(HaircardCurve.bl_idname, text = "Create Curves from Haircard Mesh (Hairworks)", icon='CURVE_DATA')
+        layout.menu(PhysXToolsClothingSubMenu.bl_idname)
+        layout.separator()
+        layout.menu(PhysXToolsHairSubMenu.bl_idname)
     
 class PhysXMenu(bpy.types.Menu):
     bl_label = "PhysX"
@@ -512,7 +566,35 @@ class PhysXMenu(bpy.types.Menu):
         layout.separator()
         layout.menu(PhysXToolsSubMenu.bl_idname)
         
-CLASSES = [ImportApx, ExportApx, AddCollisionCapsule, AddCollisionSphere, AddSphereConnection, AddPinSphere, ShapeHairInterp, CreateCurve, HaircardCurve, ApplyDrive, SetupHairworks, SetupClothing, ConvertCapsuleToSphere, PhysXMenu, PhysXSetupSubMenu, PhysXCollisionsSubMenu, PhysXToolsSubMenu]
+class PhysXToolsClothingSubMenuVertexPaint(bpy.types.Menu):
+    bl_label = "Clothing Tools"
+    bl_idname = "VIEW3D_MT_paint_vertex_PhysX_menu_Tools_Clothing"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator(AddDrive.bl_idname, text = "Add a Drive/Latch Group", icon='MATCLOTH')
+        layout.operator(ApplyDrive.bl_idname, text = "Apply to Drive Paint to Latch Paint", icon="MATCLOTH")
+        
+class PhysXToolsSubMenuVertexPaint(bpy.types.Menu):
+    bl_label = "Tools"
+    bl_idname = "VIEW3D_MT_paint_vertex_PhysX_menu_Tools"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.menu(PhysXToolsClothingSubMenuVertexPaint.bl_idname)
+        
+class PhysXMenuVertexPaint(bpy.types.Menu):
+    bl_label = "PhysX"
+    bl_idname = "VIEW3D_MT_paint_vertex_PhysX_menu"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.menu(PhysXToolsSubMenuVertexPaint.bl_idname)
+        
+CLASSES = [ImportApx, ExportApx, AddCollisionCapsule, AddCollisionSphere, AddSphereConnection, AddPinSphere, ShapeHairInterp, CreateCurve, HaircardCurve, ApplyDrive, AddDrive, SetupHairworks, SetupClothing, ConvertCapsuleToSphere, PhysXMenu, PhysXSetupSubMenu, PhysXCollisionsSubMenu, PhysXToolsSubMenu, PhysXToolsClothingSubMenu, PhysXToolsHairSubMenu, PhysXToolsClothingSubMenuVertexPaint, PhysXToolsSubMenuVertexPaint, PhysXMenuVertexPaint]
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_import(self, context):
@@ -525,19 +607,26 @@ def draw_item(self, context):
     layout = self.layout
     layout.separator()
     layout.menu(PhysXMenu.bl_idname)
+    
+def draw_item_vertex_paint(self, context):
+    layout = self.layout
+    layout.separator()
+    layout.menu(PhysXMenuVertexPaint.bl_idname)
 
 def register():
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     bpy.types.VIEW3D_MT_object.append(draw_item)
+    bpy.types.VIEW3D_MT_paint_vertex.append(draw_item_vertex_paint)
     
     for klass in CLASSES:
         bpy.utils.register_class(klass)
-
+        
 def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.types.VIEW3D_MT_object.remove(draw_item)
+    bpy.types.VIEW3D_MT_paint_vertex.remove(draw_item_vertex_paint)
     
     for klass in CLASSES:
         bpy.utils.unregister_class(klass)

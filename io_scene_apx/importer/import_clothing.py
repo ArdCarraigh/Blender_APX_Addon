@@ -11,9 +11,15 @@ from io_scene_apx import number_to_words
 from io_scene_apx.number_to_words import getWords
 from io_scene_apx.importer import import_hairworks
 from io_scene_apx.importer.import_hairworks import find_elem, to_array, JoinThem
+from io_scene_apx.tools import setup_physx
+from io_scene_apx.tools.setup_physx import add_physx_clothing_palette
 
 def read_clothing(context, filepath, use_mat, rotate_180, rm_ph_me):
+    
+    # Create Color Palette
+    add_physx_clothing_palette()
 
+    # Parse File
     root = ET.parse(filepath).getroot() #NxParameters element
     ClothingAssetParameters = find_elem(root, "value", "className", "ClothingAssetParameters")[0] #extra [0] to index into <struct>
     
@@ -171,14 +177,14 @@ def read_clothing(context, filepath, use_mat, rotate_180, rm_ph_me):
             mesh.color_attributes.new(name = "MaximumDistance", domain = 'POINT', type = 'BYTE_COLOR')
             mesh.color_attributes.new(name = "BackstopRadius", domain = 'POINT', type = 'BYTE_COLOR')
             mesh.color_attributes.new(name = "BackstopDistance", domain = 'POINT', type = 'BYTE_COLOR')
-            mesh.color_attributes.new(name = "Drive", domain = 'POINT', type = 'BYTE_COLOR')
-            mesh.color_attributes.new(name = "Latch", domain = 'POINT', type = 'BYTE_COLOR')
+            mesh.color_attributes.new(name = "Drive1", domain = 'POINT', type = 'BYTE_COLOR')
+            mesh.color_attributes.new(name = "Latch1", domain = 'POINT', type = 'BYTE_COLOR')
             for vert in mesh.vertices:
                 mesh.color_attributes["MaximumDistance"].data[vert.index].color = [0,1,0,1]
                 mesh.color_attributes["BackstopRadius"].data[vert.index].color = [0,1,0,1]
                 mesh.color_attributes["BackstopDistance"].data[vert.index].color = [0,1,0,1]
-                mesh.color_attributes["Drive"].data[vert.index].color = [1,1,1,1]
-                mesh.color_attributes["Latch"].data[vert.index].color = [1,0,1,1]
+                mesh.color_attributes["Drive1"].data[vert.index].color = [1,1,1,1]
+                mesh.color_attributes["Latch1"].data[vert.index].color = [1,0,1,1]
                     
             # Material
             if use_mat == True and materialNames[j] in bpy.data.materials:
@@ -332,14 +338,14 @@ def read_clothing(context, filepath, use_mat, rotate_180, rm_ph_me):
         me = bpy.data.objects[finalMeshes_names[i]].data
         for vert in me.vertices:
             if me.color_attributes["MaximumDistance"].data[vert.index].color[1] > me.color_attributes["MaximumDistance"].data[vert.index].color[0]:
-                me.color_attributes["Latch"].data[vert.index].color = [1,1,1,1]
-                me.color_attributes["Drive"].data[vert.index].color = [1,0,1,1]
+                me.color_attributes["Latch1"].data[vert.index].color = [1,1,1,1]
+                me.color_attributes["Drive1"].data[vert.index].color = [1,0,1,1]
                 me.color_attributes["MaximumDistance"].data[vert.index].color = [1,0,1,1]
                 me.color_attributes["BackstopRadius"].data[vert.index].color = [1,0,1,1]
                 me.color_attributes["BackstopDistance"].data[vert.index].color = [1,0,1,1]
             else:
-                me.color_attributes["Drive"].data[vert.index].color = [1,1,1,1]
-                me.color_attributes["Latch"].data[vert.index].color = [1,0,1,1]
+                me.color_attributes["Drive1"].data[vert.index].color = [1,1,1,1]
+                me.color_attributes["Latch1"].data[vert.index].color = [1,0,1,1]
     
     # Collision Capsules
     boneActors_text = find_elem(ClothingAssetParameters, "array", "name", "boneActors").text
