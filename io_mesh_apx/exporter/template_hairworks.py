@@ -43,7 +43,7 @@ template_hairworks = '''<!DOCTYPE NvParameters>
         <array name="faceIndices" size="{n_faceIndices}" type="U32">
             {faceIndices} 
         </array>
-        <array name="faceUVs" size="{n_UVs}" type="Vec2">
+        <array name="faceUVs" size="{n_faceIndices}" type="Vec2">
             {UVs}
         </array>
         <value name="numBones" type="U32">{numBones}</value>
@@ -62,7 +62,7 @@ template_hairworks = '''<!DOCTYPE NvParameters>
         <array name="bindPoses" size="{numBones}" type="Mat44">
             {bindPoses}
         </array>
-        <array name="boneParents" size="{num_boneParents}" type="I32">
+        <array name="boneParents" size="{numBones}" type="I32">
             {boneParents}
         </array>
         <value name="numBoneSpheres" type="U32">{numBonesSpheres}</value>
@@ -78,7 +78,7 @@ template_hairworks = '''<!DOCTYPE NvParameters>
             {pinConstraints}
         </array>
         <value name="sceneUnit" type="F32">1</value>
-        <value name="upAxis" type="U32">1</value>
+        <value name="upAxis" type="U32">2</value>
         <value name="handedness" type="U32">1</value>
     </struct>
 </value>
