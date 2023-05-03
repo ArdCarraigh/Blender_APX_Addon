@@ -5,6 +5,7 @@ import bpy
 import numpy as np
 from mathutils import kdtree, Vector
 from copy import deepcopy
+import bmesh
 
 def find_elem(root, tag, attr=None, attr_value=None):
     for elem in root:
@@ -120,14 +121,6 @@ def Get3Bits(int):
         bits = '0'+bits
     return bits
 
-def getSubmeshID(vertID, intervals):
-    id = -1
-    for i in range(len(intervals)):
-        if vertID >= intervals[i][0] and vertID <= intervals[i][1]:
-            id = i
-            break
-    return id
-
 def getProjectedVertex(vert_co, norm, origin):
     thickness = norm.dot((vert_co - origin))
     return vert_co - thickness * norm, thickness
@@ -180,8 +173,9 @@ def selectOnly(obj):
     
 def getVertexBary(vert_co, vert_normal, target_obj, target_vertex, target_face, normal_offset, vert_tangent = None):
     mesh = target_obj.data
-    target_co = mesh.vertices[target_vertex].co
-    target_normal = mesh.vertices[target_vertex].normal
+    t_vert = mesh.vertices[target_vertex]
+    target_co = t_vert.co
+    target_normal = t_vert.normal
     vertProj, vertThickness = getProjectedVertex(vert_co, target_normal, target_co)
     vertBary = cart2bary(target_obj, target_face, vertProj)
     vertBary[2] = vertThickness
@@ -250,3 +244,16 @@ def RemoveDoubles():
     bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
     
+def OrderVertices(mesh, order, index = False):
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.from_edit_mesh(mesh)
+    if index:
+        for vert_id, v in enumerate(bm.verts):
+            v.index = np.where(order == vert_id)[0][0]
+    else:
+        for vert_id, v in enumerate(bm.verts):
+            v.index = order[vert_id]
+    bm.verts.sort()
+    bmesh.update_edit_mesh(mesh)
+    bm.free()
+    bpy.ops.object.mode_set(mode='OBJECT')

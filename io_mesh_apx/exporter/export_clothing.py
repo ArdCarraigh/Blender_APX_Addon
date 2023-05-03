@@ -2,14 +2,13 @@
 # exporter/export_clothing.py
 
 import bpy
-import bmesh
 import re
 import numpy as np
 from copy import deepcopy
 from mathutils import Matrix, Vector
 from io_mesh_apx.exporter.template_clothing import *
 from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, CheckPhysicalPaint, apply_drive
-from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, getSubmeshID, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh
+from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices
     
 def write_clothing(context, filepath, maximumMaxDistance):
     kwargs = {}
@@ -95,213 +94,36 @@ def write_clothing(context, filepath, maximumMaxDistance):
     # For each LOD
     simulationMaterials = []
     physicalMeshes = []
+    graphicalLods = []
+    boundingBoxes = []
     storedPhysicalMeshes = []
     storedPhysicalMeshesDicts = []
     storedPhysicalMeshesFacesFinal = []
     storedPhysicalMeshesNormalOffsets = []
     storedPhysicalMeshesMaxEdgeLength = []
     storedPhysicalMeshesAllNormals = []
-    graphicalLods = []
-    boundingBoxes = []
     for numLod, obj in enumerate(objects):
         kwargs_materials = {}
         kwargs_lod = {}
         kwargs_lod['numLod'] = numLod
         kwargs_lod['physicalMeshId'] = numLod
+        kwargs_physical = {}
         
         # Make and prepare a duplicate mesh
         selectOnly(obj)
         bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
         duplicate_obj = bpy.context.active_object
-
-        # Apply transforms
         applyTransforms(duplicate_obj, armaScale, armaRot, armaLoc)
-        
-        # Triangulate Faces
         TriangulateActiveMesh()
-        
-        # Apply Drive Paint
         apply_drive(context = bpy.context, group="1", invert = False)
         
-        # Split by materials
-        bpy.ops.mesh.separate(type='MATERIAL')
-        
-        #Loop through submeshes
-        all_Normals = []
-        all_Tangents = []
-        submesh_meshes = []
-        submeshes = []
-        materials = []
-        lodUsedBones = []
-        numSubmesh = -1
-        submeshVertices = []
-        startVertex = 0
-        obj_name = obj.name
-        for submesh in arma.children:
-            submesh_name = submesh.name
-            if obj_name in submesh_name and obj_name != submesh_name:
-                mesh = submesh.data
-                selectOnly(submesh)
-                numSubmesh += 1
-                submesh_meshes.append(submesh)
-                
-                # Edge Split where split normals or uv seam (necessary as these face corner data are stored per vertex in .apx)
-                SplitMesh(mesh)
-                
-                # Normals and Tangents Calculation
-                mesh.calc_normals_split()
-                if mesh.uv_layers:
-                    mesh.calc_tangents()
-                
-                n_vertices = len(mesh.vertices) 
-                kwargs_submesh = {}
-                kwargs_submesh["numVertices"] = n_vertices
-                submeshVertices.append([startVertex, startVertex + n_vertices-1])
-                startVertex += n_vertices
-                bufferData = []
-                bufferFormats = []
-                
-                # Get Vertices Positions
-                vertices = np.zeros(n_vertices * 3)
-                mesh.attributes['position'].data.foreach_get("vector", vertices)
-                kwargs_vertices = {}
-                kwargs_vertices['numData'] = n_vertices
-                kwargs_vertices['arrayData'] = ', '.join([' '.join(map(str, vert)) for vert in vertices.reshape(-1,3)])
-                bufferData.append(templateDataPositionNormal.format(**kwargs_vertices))
-                
-                # Get Normals
-                normals = GetLoopDataPerVertex(mesh, "NORMAL")
-                all_Normals.extend(normals)
-                kwargs_normals = {}
-                kwargs_normals['numData'] = n_vertices
-                kwargs_normals['arrayData'] = ', '.join([' '.join(map(str, norm)) for norm in normals])
-                bufferData.append(templateDataPositionNormal.format(**kwargs_normals))
-                
-                # Get Tangents
-                tangents = GetLoopDataPerVertex(mesh, "TANGENT")
-                all_Tangents.extend(tangents)
-                kwargs_tangents = {}
-                kwargs_tangents['numData'] = n_vertices
-                kwargs_tangents['arrayData'] = ','.join([' '.join(map(str, tang)) for tang in tangents])
-                bufferData.append(templateDataTangent.format(**kwargs_tangents))
-                
-                # Initialise Buffer Formats
-                bufferFormats = [templateVertexPositionBuffer, templateVertexNormalBuffer, templateVertexTangentBuffer]
-                
-                # Get Vertex Color
-                for layer in mesh.color_attributes:
-                    if not re.search('MaximumDistance|BackstopRadius|BackstopDistance|Drive|Latch', layer.name):
-                        vcol = np.zeros(n_vertices * 4)
-                        layer.data.foreach_get("color", vcol)
-                        # Write Vertex Color Buffer
-                        kwargs_vcol = {}
-                        kwargs_vcol['numData'] = len(vcol)
-                        kwargs_vcol['arrayData'] = ','.join([' '.join(map(str, map(int, x))) for x in (vcol * 255).reshape(-1,4)])
-                        bufferData.append(templateDataColor.format(**kwargs_vcol))
-                        bufferFormats.append(templateVertexColorBuffer)
-                        break
-                    
-                # Get UV Maps
-                semantic = 5
-                id = 6
-                for uv_index, uv in enumerate(mesh.uv_layers):
-                    if semantic < 9:
-                        uvs = GetLoopDataPerVertex(mesh, "UV", uv.name)
-                        # Write UV Buffer
-                        kwargs_uvs = {}
-                        kwargs_uvs['numData'] = n_vertices
-                        kwargs_uvs['arrayData'] = ','.join([' '.join(map(str, x)) for x in uvs])
-                        bufferData.append(templateDataUV.format(**kwargs_uvs))
-                        kwargs_uv_buffer = {}
-                        kwargs_uv_buffer['numUVBuffer'] = uv_index
-                        kwargs_uv_buffer['semanticUVBuffer'] = semantic
-                        kwargs_uv_buffer['idEndUVBuffer'] = id
-                        bufferFormats.append(templateVertexUVBuffer.format(**kwargs_uv_buffer))
-                        semantic += 1
-                        id += 1
-                
-                # Get Bone Indices and Weights    
-                boneIndices = []
-                boneWeights = []
-                vertex_groups = submesh.vertex_groups
-                for vert in mesh.vertices:
-                    boneIndices.append(np.full(4, numUsedBones-1, dtype=int))
-                    boneWeights.append(np.zeros(4, dtype=float))
-                    i = 0
-                    for g in vert.groups:
-                        g_weight = g.weight
-                        if i < 4 and g_weight:
-                            bone_id = boneIndexInternal[vertex_groups[g.group].name]
-                            boneIndices[-1][i] = bone_id
-                            # Add to the used bones for that mesh
-                            if bone_id not in lodUsedBones:
-                                lodUsedBones.append(bone_id)
-                            #Add a vertex referenced for this bone
-                            numMeshReferenced[boneIndex[vertex_groups[g.group].name]] += 1
-                            boneWeights[-1][i] = g_weight
-                            i += 1
-                boneWeights = [x/x.sum() for x in boneWeights]
-                kwargs_boneIndices = {}
-                kwargs_boneIndices['numData'] = n_vertices
-                kwargs_boneIndices['arrayData'] = ','.join([' '.join(map(str, x)) for x in boneIndices])
-                bufferData.append(templateDataBoneIndex.format(**kwargs_boneIndices))
-                bufferFormats.append(templateVertexBoneIndexBuffer)
-                kwargs_boneWeights = {}
-                kwargs_boneWeights['numData'] = n_vertices
-                kwargs_boneWeights['arrayData'] = ','.join([' '.join(map(str, x)) for x in boneWeights])
-                bufferData.append(templateDataBoneWeight.format(**kwargs_boneWeights))
-                bufferFormats.append(templateVertexBoneWeightBuffer)
-                
-                #Write Buffers
-                kwargs_submesh['numBuffers'] = len(bufferFormats)
-                kwargs_submesh['bufferFormats'] = '\n                              '.join(buffer for buffer in bufferFormats)
-                kwargs_submesh['bufferData'] = '\n                          '.join(buffer for buffer in bufferData)
-                
-                # Get Faces
-                n_face_indices = len(mesh.polygons) * 3
-                face_array = np.zeros(n_face_indices, dtype=int)
-                mesh.polygons.foreach_get("vertices", face_array)
-                kwargs_submesh['numIndices'] = n_face_indices
-                kwargs_submesh['faceIndices'] = ' '.join(map(str, face_array))
-                
-                # Vertex and Index Partitions
-                kwargs_submesh['vertexPartition'] = '0 ' + str(n_vertices)
-                kwargs_submesh['indexPartition'] = '0 ' + str(n_face_indices)
-                
-                # Materials
-                materials.append(mesh.materials[0].name)
-
-                # Append submesh
-                submeshes.append(templateSubMesh.format(**kwargs_submesh))
-        
-        # Join submeshes back together        
-        JoinThem(submesh_meshes)
-        meshLod = bpy.context.active_object
-        mesh = meshLod.data
-        
-        # Write submeshes and materials
-        kwargs_lod['numSubMeshes'] = len(submeshes)
-        kwargs_lod['subMeshes'] = '\n                '.join(x for x in submeshes)
-        kwargs_lod['materials'] = '\n                '.join('<value type="String">{}</value>'.format(mat) for mat in materials)
-        
-        # Number of Used Bones
-        kwargs_lod['numUsedBones'] = numUsedBones
-        
-        # LOD Bounding Box
-        lodBoundingBox = (*list(meshLod.bound_box[0]), *list(meshLod.bound_box[6]))
-        kwargs_lod['partBounds'] = ' '.join(map(str, lodBoundingBox))
-        boundingBoxes.append(lodBoundingBox)
-        
-        # Simulation Materials
-        kwargs_materials['simulationMaterialName'] = meshLod.name
-        
-        # Physical Mesh
+        # Export Physical Mesh
         # Duplication and preparation
         bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
         physicalMesh = bpy.context.active_object
+        physicalMesh.name = "tempPhysicalMesh"
         physics_mesh = physicalMesh.data
         n_groups, driveDataGraphical, latchDataGraphical = cleanUpDriveLatchGroups(physicalMesh, True)
-        driveLatchGroupGraphical = np.argmax(np.sum([driveDataGraphical, latchDataGraphical], axis=0), axis=1)
         drive_bool_array = np.any(latchDataGraphical > 0.3, axis = 1)
         if ".select_vert" not in physics_mesh.attributes:
             physics_mesh.attributes.new(".select_vert", "BOOLEAN", "POINT")
@@ -330,21 +152,12 @@ def write_clothing(context, filepath, maximumMaxDistance):
         temp_faces_nsim = np.count_nonzero(temp_faces_score, axis = 1)
         temp_faces_score = np.sum(temp_faces_score, axis = 1)  
         face_array = np.array([x for z,y,x in sorted(zip(temp_faces_nsim,temp_faces_score,face_array.reshape(-1,3)), key=lambda v: (v[0], v[1]), reverse = True)]).flatten()
-        sortedVertices = list(dict.fromkeys(face_array).keys())
-        # Get Final Faces Directly
-        face_array = np.array([sortedVertices.index(x) for x in face_array])
+        sortedVertices = np.array(list(dict.fromkeys(face_array).keys()))
+        #Get Final Faces Directly
+        face_array = np.array([np.where(sortedVertices == x) for x in face_array]).flatten()
         faces_final = face_array.reshape(-1,3)
-        #Re-order vertices
-        bpy.ops.object.mode_set(mode='EDIT')
-        bm = bmesh.from_edit_mesh(physics_mesh)
-        for v in bm.verts:
-            v.index = sortedVertices.index(v.index)
-        bm.verts.sort()
-        bmesh.update_edit_mesh(physics_mesh)
-        bpy.ops.object.mode_set(mode='OBJECT')
-        
-        kwargs_physical = {}
-        physics_mesh.calc_normals_split()
+        #Re-order Vertices
+        OrderVertices(physics_mesh, sortedVertices, True)
         
         # Vertices Positions
         vertices = np.zeros(n_vertices * 3)
@@ -354,6 +167,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_physical['vertices_PhysicalMesh'] = ', '.join([' '.join(map(str, x)) for x in vertices])
         
         # Normals
+        physics_mesh.calc_normals_split()
         normals = GetLoopDataPerVertex(physics_mesh, "NORMAL")
         kwargs_physical['normals_PhysicalMesh'] = ', '.join([' '.join(map(str, x)) for x in normals])
         #I don't know what to do with these skinning normals yet
@@ -435,8 +249,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
             kwargs_physical['subMeshes_PhysicalMesh'] = ' '.join(map(str,[numIndices, numVertices, numMaxDistance0]))
             kwargs_physical['numPhysicalLods'] = 2
             kwargs_physical['physicalLods'] = ', '.join(['0 PX_MAX_U32 0 ' + str(maximumMaxDistance), str(numVertices) + ' 0 1 0'])
-        
-        # skinClothMap
+            
+        # Prepare Skin Cloth Map
         kwargs_lod['numImmediateClothMap'] = 0
         kwargs_lod['numSkinClothMap'] = 0
         kwargs_lod['immediateClothMap'] = ''
@@ -444,55 +258,244 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength']*0.1
         kwargs_lod['physicsSubmeshPartitioning'] = ''
         kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
-        
-        # Immediate Cloth Map
         if np.all(np.any(driveDataGraphical > 0.3, axis = 1)):
+            immediateClothMap_bool = True
             immediate_kdtree = MakeKDTreeFromObject(physicalMesh)
-            immediateClothMap = [getClosest(vert.co, immediate_kdtree, 0.001) for vert in mesh.vertices]
-            kwargs_lod['numImmediateClothMap'] = len(immediateClothMap)
-            kwargs_lod['immediateClothMap'] = ' '.join(map(str, immediateClothMap))
-        
-        # Or True Skin Cloth Map TOPERFECT   
+            immediateClothMap = []
         else:
-            range_submeshes = range(numSubmesh+1)
+            immediateClothMap_bool = False
             KDTrees = []
             for group in range(n_groups):
                 KDTrees.append(MakeKDTreeFromObject(physicalMesh, np.where(driveLatchGroupPhysical == group)[0]))
             skinClothMap = []
-            simulatedVertices = [[] for x in range_submeshes]
-            for vert in mesh.vertices:
-                drive_group = driveLatchGroupGraphical[vert.index]
-                closestVert = getClosest(vert.co, KDTrees[drive_group], max_edge_length)
-                closestFace = faces_final[np.where(faces_final == closestVert)[0][0]]
-                if constrainCoefficients[closestVert][0]:
-                    simulatedVertices[getSubmeshID(vert.index, submeshVertices)].append(vert.index)
-                vertBary, normBary, tangBary = getVertexBary(vert.co, Vector((all_Normals[vert.index])), physicalMesh, closestVert, closestFace, kwargs_lod['skinClothMapOffset'], Vector((all_Tangents[vert.index][0:3])))
-                skinClothMap.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], ' '.join(map(str, tangBary)), closestFace[2], vert.index])
-            kwargs_lod['numSkinClothMap'] = len(skinClothMap)
-            kwargs_lod['skinClothMap'] = ','.join([' '.join(map(str, x)) for x in skinClothMap])
-        
-            # physicsSubmeshPartitioning TOPERFECT
-            simulatedVerticesFlat = np.array(simulatedVertices).flatten()
-            simulatedVerticesAdditional = [[] for x in range_submeshes]
-            simulatedIndices = [0 for x in range_submeshes]
-            for face in mesh.polygons:
-                if any(x in simulatedVerticesFlat for x in face.vertices):
-                    simulatedVerticesAdditional[getSubmeshID(face.vertices[0], submeshVertices)].extend(face.vertices)
-                    simulatedIndices[getSubmeshID(face.vertices[0], submeshVertices)] += 3
-            simulatedVerticesAdditional = list(map(set,simulatedVerticesAdditional))    
             physicsSubmeshPartitioning = []
-            for i in range_submeshes:
-                physicsSubmeshPartitioning.append([i, 0, len(simulatedVertices[i]), len(simulatedVerticesAdditional[i]), simulatedIndices[i]])
-            kwargs_lod['numPhysicsSubmeshPartitioning'] = len(physicsSubmeshPartitioning)
-            kwargs_lod['physicsSubmeshPartitioning'] = ','.join([' '.join(map(str, x)) for x in physicsSubmeshPartitioning])
             
-        # Append Per Lod information
+        # Append Per Physical Lod Information  
         storedPhysicalMeshesDicts.append(kwargs_physical)
         storedPhysicalMeshes.append(physicalMesh)
         storedPhysicalMeshesFacesFinal.append(faces_final)
         storedPhysicalMeshesNormalOffsets.append(kwargs_lod['skinClothMapOffset'])
         storedPhysicalMeshesMaxEdgeLength.append(max_edge_length)
         storedPhysicalMeshesAllNormals.append(normals)
+        
+        # Export Graphical Mesh
+        selectOnly(duplicate_obj)
+        #Edge Split where split normals or uv seam (necessary as these face corner data are stored per vertex in .apx)
+        SplitMesh(duplicate_obj.data)
+        #Split by materials
+        bpy.ops.mesh.separate(type='MATERIAL')
+        
+        #Loop through submeshes
+        submesh_meshes = []
+        submeshes = []
+        materials = []
+        lodUsedBones = []
+        numSubmesh = -1
+        n_vertices_all = 0
+        obj_name = obj.name
+        for submesh in arma.children:
+            submesh_name = submesh.name
+            if obj_name in submesh_name and obj_name != submesh_name:
+                mesh = submesh.data
+                selectOnly(submesh)
+                numSubmesh += 1
+                submesh_meshes.append(submesh)
+                kwargs_submesh = {}
+                bufferData = []
+                
+                # VertexCount
+                n_vertices = len(mesh.vertices)
+                kwargs_submesh["numVertices"] = n_vertices
+
+                # Re-Oder Graphical Vertices
+                #Get Faces
+                n_face_indices = len(mesh.polygons) * 3
+                face_array = np.zeros(n_face_indices, dtype=int)
+                mesh.polygons.foreach_get("vertices", face_array)
+                #Get Closest Physical Vertices
+                if immediateClothMap_bool:
+                    submesh_closestVerts = np.array([getClosest(vert.co, immediate_kdtree, 0.001) for vert in mesh.vertices])
+                else:
+                    n_groups, driveDataGraphical, latchDataGraphical = cleanUpDriveLatchGroups(submesh, True)
+                    driveLatchGroupGraphical = np.argmax(np.sum([driveDataGraphical, latchDataGraphical], axis=0), axis=1)
+                    submesh_closestVerts = np.array([getClosest(vert.co, KDTrees[driveLatchGroupGraphical[vert_id]], max_edge_length) for vert_id, vert in enumerate(mesh.vertices)])
+                #Ordering by Maximum Distance
+                temp_verts_score = constrainCoefficients[submesh_closestVerts][:,0]
+                temp_faces_score = temp_verts_score[face_array].reshape(-1,3)
+                temp_faces_nsim = np.count_nonzero(temp_faces_score, axis = 1)
+                temp_verts_sim_dict = dict(zip(face_array, (temp_faces_nsim>0).repeat(3)))
+                temp_verts_sim_bool = list(dict(sorted(zip(temp_verts_sim_dict.keys(), temp_verts_sim_dict.values()), key=lambda v: v[0])).values())
+                sortedVertices = np.array([x for x,y,z in sorted(zip(range(n_vertices), temp_verts_score, temp_verts_sim_bool), key=lambda v: (v[2], v[1]), reverse = True)])
+                submesh_closestVerts = submesh_closestVerts[sortedVertices]
+                #Re-order Vertices
+                OrderVertices(mesh, sortedVertices, True)
+                
+                # Get Vertices Positions
+                vertices = np.zeros(n_vertices * 3)
+                mesh.attributes['position'].data.foreach_get("vector", vertices)
+                kwargs_vertices = {}
+                kwargs_vertices['numData'] = n_vertices
+                kwargs_vertices['arrayData'] = ', '.join([' '.join(map(str, vert)) for vert in vertices.reshape(-1,3)])
+                bufferData.append(templateDataPositionNormal.format(**kwargs_vertices))
+                
+                # Get Normals
+                mesh.calc_normals_split()
+                normals = GetLoopDataPerVertex(mesh, "NORMAL")
+                kwargs_normals = {}
+                kwargs_normals['numData'] = n_vertices
+                kwargs_normals['arrayData'] = ', '.join([' '.join(map(str, norm)) for norm in normals])
+                bufferData.append(templateDataPositionNormal.format(**kwargs_normals))
+                
+                # Get Tangents
+                if mesh.uv_layers:
+                    mesh.calc_tangents()
+                tangents = GetLoopDataPerVertex(mesh, "TANGENT")
+                kwargs_tangents = {}
+                kwargs_tangents['numData'] = n_vertices
+                kwargs_tangents['arrayData'] = ','.join([' '.join(map(str, tang)) for tang in tangents])
+                bufferData.append(templateDataTangent.format(**kwargs_tangents))
+                
+                # Initialise Buffer Formats
+                bufferFormats = [templateVertexPositionBuffer, templateVertexNormalBuffer, templateVertexTangentBuffer]
+                
+                # Get Vertex Color
+                for layer in mesh.color_attributes:
+                    if not re.search('MaximumDistance|BackstopRadius|BackstopDistance|Drive|Latch', layer.name):
+                        vcol = np.zeros(n_vertices * 4)
+                        layer.data.foreach_get("color", vcol)
+                        # Write Vertex Color Buffer
+                        kwargs_vcol = {}
+                        kwargs_vcol['numData'] = len(vcol)
+                        kwargs_vcol['arrayData'] = ','.join([' '.join(map(str, map(int, x))) for x in (vcol * 255).reshape(-1,4)])
+                        bufferData.append(templateDataColor.format(**kwargs_vcol))
+                        bufferFormats.append(templateVertexColorBuffer)
+                        break
+                    
+                # Get UV Maps
+                semantic = 5
+                id = 6
+                for uv_index, uv in enumerate(mesh.uv_layers):
+                    if semantic < 9:
+                        uvs = GetLoopDataPerVertex(mesh, "UV", uv.name)
+                        # Write UV Buffer
+                        kwargs_uvs = {}
+                        kwargs_uvs['numData'] = n_vertices
+                        kwargs_uvs['arrayData'] = ','.join([' '.join(map(str, x)) for x in uvs])
+                        bufferData.append(templateDataUV.format(**kwargs_uvs))
+                        kwargs_uv_buffer = {}
+                        kwargs_uv_buffer['numUVBuffer'] = uv_index
+                        kwargs_uv_buffer['semanticUVBuffer'] = semantic
+                        kwargs_uv_buffer['idEndUVBuffer'] = id
+                        bufferFormats.append(templateVertexUVBuffer.format(**kwargs_uv_buffer))
+                        semantic += 1
+                        id += 1
+                
+                # Get Bone Indices and Weights    
+                boneIndices = []
+                boneWeights = []
+                vertex_groups = submesh.vertex_groups
+                for vert in mesh.vertices:
+                    boneIndices.append(np.full(4, numUsedBones-1, dtype=int))
+                    boneWeights.append(np.zeros(4, dtype=float))
+                    i = 0
+                    for g in vert.groups:
+                        g_weight = g.weight
+                        if i < 4 and g_weight:
+                            bone_id = boneIndexInternal[vertex_groups[g.group].name]
+                            boneIndices[-1][i] = bone_id
+                            # Add to the used bones for that mesh
+                            if bone_id not in lodUsedBones:
+                                lodUsedBones.append(bone_id)
+                            #Add a vertex referenced for this bone
+                            numMeshReferenced[boneIndex[vertex_groups[g.group].name]] += 1
+                            boneWeights[-1][i] = g_weight
+                            i += 1
+                boneWeights = [x/x.sum() for x in boneWeights]
+                kwargs_boneIndices = {}
+                kwargs_boneIndices['numData'] = n_vertices
+                kwargs_boneIndices['arrayData'] = ','.join([' '.join(map(str, x)) for x in boneIndices])
+                bufferData.append(templateDataBoneIndex.format(**kwargs_boneIndices))
+                bufferFormats.append(templateVertexBoneIndexBuffer)
+                kwargs_boneWeights = {}
+                kwargs_boneWeights['numData'] = n_vertices
+                kwargs_boneWeights['arrayData'] = ','.join([' '.join(map(str, x)) for x in boneWeights])
+                bufferData.append(templateDataBoneWeight.format(**kwargs_boneWeights))
+                bufferFormats.append(templateVertexBoneWeightBuffer)
+                
+                #Write Buffers
+                kwargs_submesh['numBuffers'] = len(bufferFormats)
+                kwargs_submesh['bufferFormats'] = '\n                              '.join(buffer for buffer in bufferFormats)
+                kwargs_submesh['bufferData'] = '\n                          '.join(buffer for buffer in bufferData)
+                
+                # Get Faces
+                mesh.polygons.foreach_get("vertices", face_array)
+                kwargs_submesh['numIndices'] = n_face_indices
+                kwargs_submesh['faceIndices'] = ' '.join(map(str, face_array))
+                
+                # Vertex and Index Partitions
+                kwargs_submesh['vertexPartition'] = '0 ' + str(n_vertices)
+                kwargs_submesh['indexPartition'] = '0 ' + str(n_face_indices)
+                
+                # Materials
+                materials.append(mesh.materials[0].name)
+                
+                # Compute Submesh Cloth Map
+                if immediateClothMap_bool:
+                    immediateClothMap.extend(submesh_closestVerts)
+                else:
+                    for vert_id, vert in enumerate(mesh.vertices):
+                        closestFace = faces_final[np.where(faces_final == submesh_closestVerts[vert_id])[0][0]]
+                        vertBary, normBary, tangBary = getVertexBary(vert.co, Vector((normals[vert_id])), physicalMesh, submesh_closestVerts[vert_id], closestFace, kwargs_lod['skinClothMapOffset'], Vector((tangents[vert_id][0:3])))
+                        skinClothMap.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], ' '.join(map(str, tangBary)), closestFace[2], n_vertices_all + vert_id])
+                    # Compute physicsSubmeshPartitioning
+                    numIndices = np.count_nonzero(temp_faces_nsim) * 3
+                    if numIndices:
+                        numVerticesAdditional = len(set(face_array[0:numIndices]))
+                        numVertices = np.count_nonzero(constrainCoefficients[submesh_closestVerts][:,0])
+                        physicsSubmeshPartitioning.append([numSubmesh, 0, numVertices, numVerticesAdditional, numIndices])
+                    else:
+                        physicsSubmeshPartitioning.append([numSubmesh, 0, 0, 0, 0])
+
+                # Append submesh
+                submeshes.append(templateSubMesh.format(**kwargs_submesh))
+                n_vertices_all += n_vertices
+        
+        # Join submeshes back together        
+        JoinThem(submesh_meshes)
+        meshLod = bpy.context.active_object
+        mesh = meshLod.data
+        
+        # Write submeshes and materials
+        kwargs_lod['numSubMeshes'] = len(submeshes)
+        kwargs_lod['subMeshes'] = '\n                '.join(x for x in submeshes)
+        kwargs_lod['materials'] = '\n                '.join('<value type="String">{}</value>'.format(mat) for mat in materials)
+        
+        # Number of Used Bones
+        kwargs_lod['numUsedBones'] = numUsedBones
+        
+        # LOD Bounding Box
+        lodBoundingBox = (*list(meshLod.bound_box[0]), *list(meshLod.bound_box[6]))
+        kwargs_lod['partBounds'] = ' '.join(map(str, lodBoundingBox))
+        boundingBoxes.append(lodBoundingBox)
+        
+        # Simulation Materials
+        kwargs_materials['simulationMaterialName'] = meshLod.name
+        
+        # Immediate Cloth Map
+        if immediateClothMap_bool:
+            kwargs_lod['numImmediateClothMap'] = n_vertices_all
+            kwargs_lod['immediateClothMap'] = ' '.join(map(str, immediateClothMap))
+        
+        # Or True Skin Cloth Map  
+        else:
+            kwargs_lod['numSkinClothMap'] = n_vertices_all
+            kwargs_lod['skinClothMap'] = ','.join([' '.join(map(str, x)) for x in skinClothMap])
+        
+            # physicsSubmeshPartitioning   
+            kwargs_lod['numPhysicsSubmeshPartitioning'] = numSubmesh+1
+            kwargs_lod['physicsSubmeshPartitioning'] = ','.join([' '.join(map(str, x)) for x in physicsSubmeshPartitioning])
+            
+        # Append Per Graphical Lod information
         graphicalLods.append(templateGraphicalMesh.format(**kwargs_lod))
         simulationMaterials.append(templateSimulationMaterial.format(**kwargs_materials))
         
@@ -520,11 +523,11 @@ def write_clothing(context, filepath, maximumMaxDistance):
                 storedPhysicalMeshesDicts[i]["transitionUpThickness"] = 1
                 storedPhysicalMeshesDicts[i]["transitionUpOffset"] = storedPhysicalMeshesNormalOffsets[target_id]
                 transitionUp = []
-                for vert in storedPhysicalMeshes[i].data.vertices:
+                for vert_id, vert in enumerate(storedPhysicalMeshes[i].data.vertices):
                     closestVert = getClosest(vert.co, KDTrees[target_id], storedPhysicalMeshesMaxEdgeLength[target_id])
                     closestFace = storedPhysicalMeshesFacesFinal[target_id][np.where(storedPhysicalMeshesFacesFinal[target_id] == closestVert)[0][0]]
-                    vertBary, normBary = getVertexBary(vert.co, Vector((storedPhysicalMeshesAllNormals[i][vert.index])), storedPhysicalMeshes[target_id], closestVert, closestFace, storedPhysicalMeshesDicts[i]["transitionUpOffset"])
-                    transitionUp.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], "PX_MAX_F32", "PX_MAX_F32", "PX_MAX_F32", closestFace[2], vert.index])
+                    vertBary, normBary = getVertexBary(vert.co, Vector((storedPhysicalMeshesAllNormals[i][vert_id])), storedPhysicalMeshes[target_id], closestVert, closestFace, storedPhysicalMeshesDicts[i]["transitionUpOffset"])
+                    transitionUp.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], "PX_MAX_F32", "PX_MAX_F32", "PX_MAX_F32", closestFace[2], vert_id])
                 storedPhysicalMeshesDicts[i]["numTransitionUp"] = len(transitionUp)
                 storedPhysicalMeshesDicts[i]['transitionUp'] = ','.join([' '.join(map(str, x)) for x in transitionUp])
             if i:
@@ -532,11 +535,11 @@ def write_clothing(context, filepath, maximumMaxDistance):
                 storedPhysicalMeshesDicts[i]["transitionDownThickness"] = 1
                 storedPhysicalMeshesDicts[i]["transitionDownOffset"] = storedPhysicalMeshesNormalOffsets[target_id]
                 transitionDown = []
-                for vert in storedPhysicalMeshes[i].data.vertices:
+                for vert_id, vert in enumerate(storedPhysicalMeshes[i].data.vertices):
                     closestVert = getClosest(vert.co, KDTrees[target_id], storedPhysicalMeshesMaxEdgeLength[target_id])
                     closestFace = storedPhysicalMeshesFacesFinal[target_id][np.where(storedPhysicalMeshesFacesFinal[target_id] == closestVert)[0][0]]
-                    vertBary, normBary = getVertexBary(vert.co, Vector((storedPhysicalMeshesAllNormals[i][vert.index])), storedPhysicalMeshes[target_id], closestVert, closestFace, storedPhysicalMeshesDicts[i]["transitionDownOffset"])
-                    transitionDown.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], "PX_MAX_F32", "PX_MAX_F32", "PX_MAX_F32", closestFace[2], vert.index])
+                    vertBary, normBary = getVertexBary(vert.co, Vector((storedPhysicalMeshesAllNormals[i][vert_id])), storedPhysicalMeshes[target_id], closestVert, closestFace, storedPhysicalMeshesDicts[i]["transitionDownOffset"])
+                    transitionDown.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], "PX_MAX_F32", "PX_MAX_F32", "PX_MAX_F32", closestFace[2], vert_id])
                 storedPhysicalMeshesDicts[i]["numTransitionDown"] = len(transitionDown)
                 storedPhysicalMeshesDicts[i]['transitionDown'] = ','.join([' '.join(map(str, x)) for x in transitionDown])
         
@@ -544,8 +547,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
         physicalMeshes.append(templatePhysicalMesh.format(**storedPhysicalMeshesDicts[i]))
     
     # Delete the physical meshes  
-    for me in storedPhysicalMeshes:
-        bpy.data.objects.remove(me)
+    for obj in storedPhysicalMeshes:
+        bpy.data.objects.remove(obj)
     
     # Write Mesh Information in Main Template
     kwargs['physicalMeshes'] = '\n      '.join(x for x in physicalMeshes)

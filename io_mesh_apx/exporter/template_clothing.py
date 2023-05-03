@@ -151,7 +151,7 @@ templateGraphicalMesh = '''<value type="Ref" included="1" className="ClothingGra
           <value name="skinClothMapThickness" type="F32">1</value>
           <value name="skinClothMapOffset" type="F32">{skinClothMapOffset}</value>
           <array name="tetraMap" size="0" type="Struct" structElements="vertexBary(Vec3),tetraIndex0(U32),normalBary(Vec3)"></array>
-          <value name="renderMeshAssetSorting" type="U32">1</value>
+          <value name="renderMeshAssetSorting" type="U32">2</value>
           <array name="physicsSubmeshPartitioning" size="{numPhysicsSubmeshPartitioning}" type="Struct" structElements="graphicalSubmesh(U32),physicalSubmesh(U32),numSimulatedVertices(U32),numSimulatedVerticesAdditional(U32),numSimulatedIndices(U32)">
             {physicsSubmeshPartitioning}
           </array>
