@@ -65,7 +65,10 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         materials = find_elem(GraphicalMesh, "array", "name", "materialNames")
         materialNames = []
         for j in range(len(materials)):
-            materialNames.append(materials[j].text)
+            material_name = materials[j].text
+            if len(material_name) > 63: #Deal with Blender's material's name length limit
+                material_name = material_name[-63:]
+            materialNames.append(material_name)
         SubMeshes = find_elem(GraphicalMesh, "array", "name", "submeshes")
         numSubMeshes = int(SubMeshes.attrib["size"])
         assert (len(SubMeshes) == numSubMeshes)

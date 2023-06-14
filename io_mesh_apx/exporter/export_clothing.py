@@ -78,6 +78,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
         if bone.name in obvg.vertex_groups:
             vg = obvg.vertex_groups[bone.name]
             vertexGroupsBool.append(any(vg.index in [g.group for g in v.groups] for v in obvg.data.vertices))
+        else:
+            vertexGroupsBool.append(False)
     
     # Get Number of Used Bones        
     usedBonesBool = np.array(vertexGroupsBool)
@@ -295,7 +297,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         obj_name = obj.name
         for submesh in arma.children:
             submesh_name = submesh.name
-            if obj_name in submesh_name and obj_name != submesh_name:
+            if obj_name in submesh_name and obj_name != submesh_name and "tempPhysicalMesh" not in submesh_name:
                 mesh = submesh.data
                 selectOnly(submesh)
                 numSubmesh += 1
