@@ -35,13 +35,14 @@ def JoinThem(objects):
     
 def getConnectedVertices(obj, v_idx, steps):
     interest_verts = [v_idx]
+    edge_array = np.zeros(len(obj.data.edges) * 2, dtype=int)
+    obj.data.attributes['.edge_verts'].data.foreach_get("value", edge_array)
+    edge_array = edge_array.reshape(-1,2)
     for i in range(steps):
         connec_verts = []
-        for edge in obj.data.edges:
-            edge_verts = list(edge.vertices)
-            check = any(item in interest_verts for item in edge_verts)
-            if check is True:
-                connec_verts.extend(edge_verts)
+        for edge in edge_array:
+            if any(item in interest_verts for item in edge):
+                connec_verts.extend(edge)
         interest_verts = list(set(connec_verts))
     return(list(filter(lambda v: v!=v_idx, interest_verts)))
 
@@ -82,7 +83,9 @@ def MakeKDTreeFromObject(obj, filter = None):
     return kd
 
 def GetLoopDataPerVertex(mesh, type, layername = None):
-    vertices_loops = np.array([list(zip(face.vertices, face.loop_indices)) for face in mesh.polygons]).reshape(-1,2)
+    corner_verts = mesh.attributes[".corner_vert"].data
+    corner_verts_array = np.zeros(len(corner_verts), dtype = int)
+    corner_verts.foreach_get("value", corner_verts_array)
     loops = mesh.loops
     data = [[] for i in range(len(mesh.vertices))]
     
@@ -90,8 +93,8 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
         data_array = np.zeros(len(loops) * 3)
         loops.foreach_get("normal", data_array)
         data_array = data_array.reshape(-1,3)
-        for loop in vertices_loops:
-            data[loop[0]].append(data_array[loop[1]])
+        for loop, vert in enumerate(corner_verts_array):
+            data[vert].append(data_array[loop])
         for i in range(len(data)):
             data[i] = np.mean(data[i], axis=0)
     
@@ -99,8 +102,8 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
         data_array = np.zeros(len(loops) * 3)
         loops.foreach_get("tangent", data_array)
         data_array = data_array.reshape(-1,3)
-        for loop in vertices_loops:
-            data[loop[0]].append(data_array[loop[1]])
+        for loop, vert in enumerate(corner_verts_array):
+            data[vert].append(data_array[loop])
         for i in range(len(data)):
             data[i] = (*np.mean(data[i], axis=0), 1)
             
@@ -108,8 +111,8 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
         data_array = np.zeros(len(loops) * 2)
         mesh.attributes[layername].data.foreach_get("vector", data_array)
         data_array = data_array.reshape(-1,2)
-        for loop in vertices_loops:
-            data[loop[0]].append(data_array[loop[1]])
+        for loop, vert in enumerate(corner_verts_array):
+            data[vert].append(data_array[loop])
         for i in range(len(data)):
             data[i] = np.mean(data[i], axis=0)
     
@@ -192,36 +195,40 @@ def getVertexBary(vert_co, vert_normal, target_obj, target_vertex, target_face, 
         return vertBary, normBary
     
 def SplitMesh(mesh):
-    vertices_loops = np.array([list(zip(face.vertices, face.loop_indices)) for face in mesh.polygons]).reshape(-1,2)
+    corner_verts = mesh.attributes[".corner_vert"].data
+    corner_verts_array = np.zeros(len(corner_verts), dtype = int)
+    corner_verts.foreach_get("value", corner_verts_array)
     loops = mesh.loops
     n_vertices = len(mesh.vertices)
     n_loops = len(loops)
+    select_array = np.zeros(n_vertices, dtype=bool)
     
     # Normals
     data_array = np.zeros(n_loops * 3)
     loops.foreach_get("normal", data_array)
-    data_array = data_array.reshape(-1,3)
+    data_array = data_array.reshape(-1,3).tolist()
     normals = [[] for i in range(n_vertices)]
-    for loop in vertices_loops:
-        normals[loop[0]].append(data_array[loop[1]])
-    for i in range(n_vertices):
-        normals[i] = np.any(np.array(normals[i]) != normals[i][0])
+    for loop, vert in enumerate(corner_verts_array):
+        if select_array[vert]:
+            continue
+        normals[vert].append(data_array[loop])
+        if normals[vert][-1] != normals[vert][0]:
+            select_array[vert] = True
     
     # UVs
-    UVs_all = np.zeros(n_vertices, dtype=bool)
     for uv in mesh.uv_layers:
         data_array = np.zeros(n_loops * 2)
         mesh.attributes[uv.name].data.foreach_get("vector", data_array)
-        data_array = data_array.reshape(-1,2)
+        data_array = data_array.reshape(-1,2).tolist()
         UVs = [[] for i in range(n_vertices)]
-        for loop in vertices_loops:
-            UVs[loop[0]].append(data_array[loop[1]])
-        for i in range(n_vertices):
-            UVs[i] = np.any(np.array(UVs[i]) != UVs[i][0])
-        UVs_all += np.array(UVs)
+        for loop, vert in enumerate(corner_verts_array):
+            if select_array[vert]:
+                continue
+            UVs[vert].append(data_array[loop])
+            if UVs[vert][-1] != UVs[vert][0]:
+                select_array[vert] = True
     
-    # Select Vertices and Split   
-    select_array = UVs_all + np.array(normals)
+    # Select Vertices and Split
     if ".select_vert" not in mesh.attributes:
         mesh.attributes.new(".select_vert", "BOOLEAN", "POINT")
     mesh.attributes[".select_vert"].data.foreach_set("value", select_array)

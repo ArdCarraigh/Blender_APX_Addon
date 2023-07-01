@@ -126,8 +126,7 @@ def read_hairworks(context, filepath, rotate_180):
     growth_mesh = bpy.data.meshes.new(name="GrowthMesh")
     growth_mesh.from_pydata(growth_verts, [], list(faceIndices))
     obj = object_data_add(context, growth_mesh)
-    for i in growth_mesh.polygons:
-        i.use_smooth = True
+    growth_mesh.shade_smooth()
 
     # scene options
     # Rotation of the growthmesh if requested

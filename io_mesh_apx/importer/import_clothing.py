@@ -131,8 +131,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
             mesh = bpy.data.meshes.new(name="GMesh_lod"+str(i))
             mesh.from_pydata(vertices, [], list(faces))
             obj = object_data_add(context, mesh)
-            for k in mesh.polygons:
-                k.use_smooth = True
+            mesh.shade_smooth()
             
             # Normals
             #bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -143,11 +142,14 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
             #Tangents are read-only in Blender, we can't import them
 
             # UVmaps creation
+            corner_verts = mesh.attributes[".corner_vert"].data
+            corner_verts_array = np.zeros(len(corner_verts), dtype = int)
+            corner_verts.foreach_get("value", corner_verts_array)
             for k in range(len(allUVMaps)):
                 uvmap_name = getWords(k+1)+'UV'
                 uvmap = mesh.attributes.new(uvmap_name, 'FLOAT2', 'CORNER')
                 uv_array = allUVMaps[k]
-                uv_array = np.array([uv_array[vert] for vert in np.array([list(zip(face.vertices, face.loop_indices)) for face in mesh.polygons]).reshape((-1,2)).flatten()[::2]]).flatten()
+                uv_array = uv_array[corner_verts_array].flatten()
                 uvmap.data.foreach_set("vector", uv_array)
                         
             # Vertex Color
@@ -242,8 +244,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         mesh = bpy.data.meshes.new(name="PMesh_lod"+str(i))
         mesh.from_pydata(vertices, [], list(faces))
         obj = object_data_add(context, mesh)
-        for j in mesh.polygons:
-            j.use_smooth = True
+        mesh.shade_smooth()
         
         # Normals
         #bpy.ops.object.mode_set(mode='EDIT', toggle=False)

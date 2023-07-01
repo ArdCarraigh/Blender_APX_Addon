@@ -73,6 +73,8 @@ def write_clothing(context, filepath, maximumMaxDistance):
         capsulesBool = [bone.name in capsule_bone_names for bone in bones]
     
     # Get the used bones vertex groups of the first mesh (we assume lower lod levels will use the same vertex groups or less of them, but definitely not more)
+    selectOnly(obvg)
+    bpy.ops.object.vertex_group_clean(group_select_mode='ALL')
     vertexGroupsBool = []
     for bone in bones:
         if bone.name in obvg.vertex_groups:
@@ -227,11 +229,11 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_physical['faceIndices_PhysicalMesh'] = ' '.join(map(str,face_array))
         
         # Maximum Max Distance
-        kwargs_physical['maximumMaxDistance'] = maximumMaxDistance
+        kwargs_physical['maximumMaxDistance'] = np.max(constrainCoefficients[:,0])
         
         # Edges Length
         edge_array = np.zeros(len(physics_mesh.edges) * 2, dtype=int)
-        physics_mesh.edges.foreach_get("vertices", edge_array)
+        physics_mesh.attributes['.edge_verts'].data.foreach_get("value", edge_array)
         edge_array = edge_array.reshape(-1,2)
         edgesLength = [np.linalg.norm(vertices[x[0]] - vertices[x[1]]) for x in edge_array]
         max_edge_length = np.max(edgesLength)
@@ -250,7 +252,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
             kwargs_physical['numSubMeshes_PhysicalMesh'] = 1
             kwargs_physical['subMeshes_PhysicalMesh'] = ' '.join(map(str,[numIndices, numVertices, numMaxDistance0]))
             kwargs_physical['numPhysicalLods'] = 2
-            kwargs_physical['physicalLods'] = ', '.join(['0 PX_MAX_U32 0 ' + str(maximumMaxDistance), str(numVertices) + ' 0 1 0'])
+            kwargs_physical['physicalLods'] = ', '.join(['0 PX_MAX_U32 0 ' + str(kwargs_physical['maximumMaxDistance']), str(numVertices) + ' 0 1 0'])
             
         # Prepare Skin Cloth Map
         kwargs_lod['numImmediateClothMap'] = 0
@@ -635,7 +637,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         bone_name = bone.name
         kwargs_bone = {}
         kwargs_bone['internalIndex'] = boneIndexInternal[bone_name]
-        kwargs_bone['externalIndex'] = boneIndexInternal[bone_name]
+        kwargs_bone['externalIndex'] = boneIndex[bone_name]
         kwargs_bone['numMeshReferenced'] = numMeshReferenced[i]
         kwargs_bone['numRigidBodiesReferenced'] = numRigidBodiesReferenced[i]
         kwargs_bone['parentIndex'] = boneParents[i]
