@@ -145,11 +145,10 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
             corner_verts = mesh.attributes[".corner_vert"].data
             corner_verts_array = np.zeros(len(corner_verts), dtype = int)
             corner_verts.foreach_get("value", corner_verts_array)
-            for k in range(len(allUVMaps)):
+            for k, uv in enumerate(allUVMaps):
                 uvmap_name = getWords(k+1)+'UV'
                 uvmap = mesh.attributes.new(uvmap_name, 'FLOAT2', 'CORNER')
-                uv_array = allUVMaps[k]
-                uv_array = uv_array[corner_verts_array].flatten()
+                uv_array = uv[corner_verts_array].flatten()
                 uvmap.data.foreach_set("vector", uv_array)
                         
             # Vertex Color

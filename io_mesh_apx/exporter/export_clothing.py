@@ -151,7 +151,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         #Faces and Ordering
         n_face_indices = len(physics_mesh.polygons) * 3
         face_array = np.zeros(n_face_indices, dtype=int)
-        physics_mesh.polygons.foreach_get("vertices", face_array)
+        physics_mesh.attributes[".corner_vert"].data.foreach_get("value", face_array)
         temp_faces_score = temp_max_dist[face_array].reshape(-1,3)
         temp_faces_nsim = np.count_nonzero(temp_faces_score, axis = 1)
         temp_faces_score = np.sum(temp_faces_score, axis = 1)  
@@ -315,7 +315,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
                 #Get Faces
                 n_face_indices = len(mesh.polygons) * 3
                 face_array = np.zeros(n_face_indices, dtype=int)
-                mesh.polygons.foreach_get("vertices", face_array)
+                mesh.attributes[".corner_vert"].data.foreach_get("value", face_array)
                 #Get Closest Physical Vertices
                 if immediateClothMap_bool:
                     submesh_closestVerts = np.array([getClosest(vert.co, immediate_kdtree, 0.001) for vert in mesh.vertices])
@@ -432,7 +432,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
                 kwargs_submesh['bufferData'] = '\n                          '.join(buffer for buffer in bufferData)
                 
                 # Get Faces
-                mesh.polygons.foreach_get("vertices", face_array)
+                mesh.attributes[".corner_vert"].data.foreach_get("value", face_array)
                 kwargs_submesh['numIndices'] = n_face_indices
                 kwargs_submesh['faceIndices'] = ' '.join(map(str, face_array))
                 
@@ -602,7 +602,6 @@ def write_clothing(context, filepath, maximumMaxDistance):
     capsuleAll = []
     if "capsules" in locals():
         for i, capsule in enumerate(capsules):
-            capsule_name = capsule.name
             capsuleBoneName = capsule_bone_names[i]
             #Add a rigid body referenced for this bone
             numRigidBodiesReferenced[boneIndex[capsuleBoneName]] += 1
@@ -612,7 +611,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
             spherePositions = []
             subCapsules = []
             for subCapsule in capsules:
-                if capsule_name in subCapsule.name:
+                if capsule.name in subCapsule.name:
                     subCapsules.append(subCapsule)
                     if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
                         sphereLocation, sphereRadius = applyTransforms(subCapsule, armaScale, armaRot, armaLoc, True)

@@ -66,7 +66,7 @@ def write_hairworks(context, filepath, resample_value, spline):
     n_faces = len(growth_mesh.polygons)
     n_face_indices = n_faces * 3
     face_array = np.zeros(n_face_indices, dtype=int)
-    growth_mesh.polygons.foreach_get("vertices", face_array)
+    growth_mesh.attributes[".corner_vert"].data.foreach_get("value", face_array)
     kwargs['numFaces'] = n_faces
     kwargs['n_faceIndices'] = n_face_indices
     kwargs['faceIndices'] = ' '.join(map(str, face_array))

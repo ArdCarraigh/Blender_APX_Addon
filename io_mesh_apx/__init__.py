@@ -16,7 +16,6 @@ bl_info = {
 
 import bpy
 from bpy_extras.io_utils import ImportHelper, ExportHelper
-from bpy_extras.object_utils import AddObjectHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, FloatVectorProperty, IntProperty
 from bpy.types import Operator
 from io_mesh_apx.importer.import_clothing import read_clothing
