@@ -89,32 +89,33 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
     loops = mesh.loops
     data = [[] for i in range(len(mesh.vertices))]
     
-    if type == "NORMAL": 
-        data_array = np.zeros(len(loops) * 3)
-        loops.foreach_get("normal", data_array)
-        data_array = data_array.reshape(-1,3)
-        for loop, vert in enumerate(corner_verts_array):
-            data[vert].append(data_array[loop])
-        for i in range(len(data)):
-            data[i] = np.mean(data[i], axis=0)
-    
-    elif type == "TANGENT":
-        data_array = np.zeros(len(loops) * 3)
-        loops.foreach_get("tangent", data_array)
-        data_array = data_array.reshape(-1,3)
-        for loop, vert in enumerate(corner_verts_array):
-            data[vert].append(data_array[loop])
-        for i in range(len(data)):
-            data[i] = (*np.mean(data[i], axis=0), 1)
-            
-    elif type == "UV":
-        data_array = np.zeros(len(loops) * 2)
-        mesh.attributes[layername].data.foreach_get("vector", data_array)
-        data_array = data_array.reshape(-1,2)
-        for loop, vert in enumerate(corner_verts_array):
-            data[vert].append(data_array[loop])
-        for i in range(len(data)):
-            data[i] = np.mean(data[i], axis=0)
+    match type:
+        case "NORMAL": 
+            data_array = np.zeros(len(loops) * 3)
+            loops.foreach_get("normal", data_array)
+            data_array = data_array.reshape(-1,3)
+            for loop, vert in enumerate(corner_verts_array):
+                data[vert].append(data_array[loop])
+            for i in range(len(data)):
+                data[i] = np.mean(data[i], axis=0)
+        
+        case "TANGENT":
+            data_array = np.zeros(len(loops) * 3)
+            loops.foreach_get("tangent", data_array)
+            data_array = data_array.reshape(-1,3)
+            for loop, vert in enumerate(corner_verts_array):
+                data[vert].append(data_array[loop])
+            for i in range(len(data)):
+                data[i] = (*np.mean(data[i], axis=0), 1)
+                
+        case "UV":
+            data_array = np.zeros(len(loops) * 2)
+            mesh.attributes[layername].data.foreach_get("vector", data_array)
+            data_array = data_array.reshape(-1,2)
+            for loop, vert in enumerate(corner_verts_array):
+                data[vert].append(data_array[loop])
+            for i in range(len(data)):
+                data[i] = np.mean(data[i], axis=0)
     
     return(data)
 
