@@ -110,15 +110,12 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
                     allUVMaps.append(uvs)
                 elif bufferFormats[k] == 'SEMANTIC_BONE_INDEX':
                     boneIndices_text = find_elem(buffer, "array", "name", "data").text
-                    boneIndices = to_array(boneIndices_text, int, [-1, 4])
+                    numBonesPerVertex = np.array([int(x) for x in boneIndices_text[:boneIndices_text.find(",")].split()]).size
+                    boneIndices = to_array(boneIndices_text, int, [-1, numBonesPerVertex])
                     assert (len(boneIndices) == numVertices)
                 elif bufferFormats[k] == 'SEMANTIC_BONE_WEIGHT':
                     boneWeights_text = find_elem(buffer, "array", "name", "data").text
-                    boneWeights = to_array(boneWeights_text, float, [-1, 4])
-                    assert (len(boneWeights) == numVertices)
-                elif bufferFormats[k] == 'SEMANTIC_BONE_WEIGHT':
-                    boneWeights_text = find_elem(buffer, "array", "name", "data").text
-                    boneWeights = to_array(boneWeights_text, float, [-1, 4])
+                    boneWeights = to_array(boneWeights_text, float, [-1, numBonesPerVertex])
                     assert (len(boneWeights) == numVertices)
                 elif bufferFormats[k] == 'SEMANTIC_COLOR':
                     vertexColor_text = find_elem(buffer, "array", "name", "data").text
@@ -195,7 +192,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
             
             # Bone Weighting
             for k, (indices, weights) in enumerate(zip(boneIndices, boneWeights)):
-                for l in range(4):
+                for l in range(numBonesPerVertex):
                     weight = weights[l]
                     if weight:
                         obj.vertex_groups[boneNames[indices[l]]].add([k], weight, 'REPLACE')
@@ -277,7 +274,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         bpy.ops.object.select_all(action='DESELECT')
         # Bone Weighting
         for k, (indices, weights) in enumerate(zip(boneIndices, boneWeights)):
-            for l in range(4):
+            for l in range(numBonesPerVertex):
                 weight = weights[l]
                 if weight:
                     obj.vertex_groups[boneNames[indices[l]]].add([k], weight, 'REPLACE')

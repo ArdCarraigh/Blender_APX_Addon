@@ -145,12 +145,13 @@ def read_hairworks(context, filepath, rotate_180):
     
     # Bone Indices
     boneIndices_text = find_elem(HairAssetDescriptor, "array", "name", "boneIndices").text
-    boneIndices = to_array(boneIndices_text, int, [-1, 4])
+    numBonesPerVertex = np.array([int(x) for x in boneIndices_text[:boneIndices_text.find(",")].split()]).size
+    boneIndices = to_array(boneIndices_text, int, [-1, numBonesPerVertex])
     assert(len(boneIndices) == numGuideHairs)
     
     # Bone Weights
     boneWeights_text = find_elem(HairAssetDescriptor, "array", "name", "boneWeights").text
-    boneWeights = to_array(boneWeights_text, float, [-1, 4])
+    boneWeights = to_array(boneWeights_text, float, [-1, numBonesPerVertex])
     assert(len(boneWeights) == numGuideHairs)
     
     # Parenting
@@ -162,7 +163,7 @@ def read_hairworks(context, filepath, rotate_180):
 
     # Bone Weighting
     for j, (indices, weights) in enumerate(zip(boneIndices, boneWeights)):
-        for i in range(4):
+        for i in range(numBonesPerVertex):
             weight = weights[i]
             if weight:
                 obj.vertex_groups[boneNames[indices[i]]].add([j], weight, 'REPLACE')
