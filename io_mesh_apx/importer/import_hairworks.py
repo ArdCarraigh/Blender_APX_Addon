@@ -5,14 +5,28 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import random, colorsys
 import bpy
+import os.path
 from bpy_extras.object_utils import object_data_add
 from mathutils import Matrix, Vector
 from io_mesh_apx.tools.collision_tools import add_sphere, add_connection
 from io_mesh_apx.tools.hair_tools import add_pin, shape_hair_interp
-from io_mesh_apx.utils import find_elem, to_array, selectOnly
+from io_mesh_apx.utils import find_elem, to_array, selectOnly, str2bool, simValueType, str2floatvec, SetUpWind
+from io_mesh_apx.tools.setup_tools import SetUpHairworksMaterial
 
 def read_hairworks(context, filepath, rotate_180):
-
+    
+    # Create Main Collection #
+    file_name = os.path.splitext(os.path.basename(filepath))[0]
+    parent_coll = bpy.context.view_layer.active_layer_collection
+    main_coll = bpy.data.collections.new(file_name)
+    main_coll["PhysXAssetType"] = "Hairworks"
+    parent_coll.collection.children.link(main_coll)
+    bpy.context.view_layer.active_layer_collection = parent_coll.children[main_coll.name]
+    
+    # Set Up Wind
+    SetUpWind()
+    
+    # Parse File
     root = ET.parse(filepath).getroot() #NvParameters element
     HairAssetDescriptor = find_elem(root, "value", "className", "HairAssetDescriptor")[0] #extra [0] to index into <struct>
 
@@ -74,6 +88,7 @@ def read_hairworks(context, filepath, rotate_180):
     # Create a new collection to store curves
     parent_coll = bpy.context.view_layer.active_layer_collection
     curve_coll = bpy.data.collections.new("Curves")
+    curve_coll["Hairworks Curves"] = True
     curve_coll_name = curve_coll.name
     parent_coll.collection.children.link(curve_coll)
     bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll_name]
@@ -169,11 +184,7 @@ def read_hairworks(context, filepath, rotate_180):
                 obj.vertex_groups[boneNames[indices[i]]].add([j], weight, 'REPLACE')
         
     # Apply curves as hair particle system
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(state=True)
-    bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll_name]
-    shape_hair_interp(context = bpy.context)
-    bpy.context.view_layer.active_layer_collection = parent_coll
+    shape_hair_interp(bpy.context, obj, curve_coll_name)
     
     #%% bone spheres
     numBoneSpheres = int(find_elem(HairAssetDescriptor, "value", "name", "numBoneSpheres").text)
@@ -187,11 +198,9 @@ def read_hairworks(context, filepath, rotate_180):
         # Add the spheres to the scene
         sphere_objs = []
         for b_sphere in boneSpheres:
-            bpy.context.view_layer.objects.active = arma
-            skeleton.bones.active = skeleton.bones[boneNames[int(b_sphere[0])]]
-            coordinates_world = (skeleton.bones.active.matrix_local @ Vector(b_sphere[2:5]))
-            boneSphereRadius = b_sphere[1]
-            sphere_objs.append(add_sphere(bpy.context, boneSphereRadius, coordinates_world, True))
+            boneName = boneNames[int(b_sphere[0])]
+            coordinates_world = skeleton.bones[boneName].matrix_local @ Vector(b_sphere[2:5])
+            sphere_objs.append(add_sphere(bpy.context, boneName, b_sphere[1], coordinates_world, True))
     
     #%% BoneCapsules
     numBoneCapsules = int(find_elem(HairAssetDescriptor, "value", "name", "numBoneCapsules").text)
@@ -202,26 +211,61 @@ def read_hairworks(context, filepath, rotate_180):
         assert(len(boneCapsuleIndices) == numBoneCapsules)
         
         for a, b in boneCapsuleIndices:
-            sphere_a = sphere_objs[a]
-            sphere_b = sphere_objs[b]
-            selectOnly(sphere_a)
-            bpy.context.view_layer.objects.active = sphere_b
-            sphere_b.select_set(state=True)
-            add_connection(context = bpy.context)
+            add_connection(bpy.context, [sphere_objs[a], sphere_objs[b]])
 
     #%% pin constraints
-    
     numPinConstraints = int(find_elem(HairAssetDescriptor, "value", "name", "numPinConstraints").text)
     if numPinConstraints:
         
         # read from file
-        pinConstraints_text = find_elem(HairAssetDescriptor, "array", "name", "pinConstraints").text
-        pinConstraints = to_array(pinConstraints_text, str, [-1,14])
+        pin_elem = find_elem(HairAssetDescriptor, "array", "name", "pinConstraints")
+        pin_struct = pin_elem.attrib["structElements"]
+        pinConstraints_text = pin_elem.text
+        if pin_struct == "boneSphereIndex(I32),boneSphereRadius(F32),boneSphereLocalPos(Vec3)":
+            pinConstraints = to_array(pinConstraints_text, str, [-1,5])
+            pinConstraints = np.hstack((pinConstraints, np.tile(["0", "0", "false", "false", "false", "0", "0", "0", "0"], (len(pinConstraints),1))))
+        else:
+            pinConstraints = to_array(pinConstraints_text, str, [-1,14])
         assert(len(pinConstraints) == numPinConstraints)
         
         for b_sphere in pinConstraints:
-            bpy.context.view_layer.objects.active = arma
-            skeleton.bones.active = skeleton.bones[boneNames[int(b_sphere[0])]]
-            coordinates_world = (skeleton.bones.active.matrix_local @ Vector(b_sphere[2:5].astype(float)))
-            boneSphereRadius = float(b_sphere[1])
-            add_pin(context = bpy.context, radius = boneSphereRadius, location = coordinates_world, use_location = True)
+            boneName = boneNames[int(b_sphere[0])]
+            coordinates_world = skeleton.bones[boneName].matrix_local @ Vector(b_sphere[2:5].astype(float))
+            add_pin(bpy.context, boneName, float(b_sphere[1]), coordinates_world, True, float(b_sphere[5]), float(b_sphere[6]), str2bool(b_sphere[7]), str2bool(b_sphere[8]), str2bool(b_sphere[9]), b_sphere[10:].astype(float))
+            
+    # Hair Material
+    HairSceneDescriptor = find_elem(root, "value", "className", "HairSceneDescriptor")[0] #extra [0] to index into <struct>
+    HairInstanceDescriptor = find_elem(root, "value", "className", "HairInstanceDescriptor")[0][0][0] #extra [0]'s to index into first material and <struct>
+    
+    material = {}
+    material["textureDirName"] = ""
+    for elem in HairSceneDescriptor:
+        elem_text = elem.text
+        if elem_text:
+            if not material["textureDirName"]:
+                material["textureDirName"] = os.path.dirname(elem_text)
+            material[elem.attrib["name"]] = os.path.basename(elem_text)
+        else:
+            material[elem.attrib["name"]] = ''
+
+    for elem in HairInstanceDescriptor:
+        elem_name = elem.attrib["name"]
+        if elem_name in ["diffuseBoneLocalPos", "wind", "gravity"]:
+            material[elem_name] = str2floatvec(elem.text)
+        elif "Chan" in elem_name:
+            material[elem_name] = str(elem.text)
+        elif elem_name == "name":
+            if elem.text:
+                material["matName"] = str(elem.text)
+            else:
+                material["matName"] = ''
+        else:
+            func_type = simValueType(elem.attrib["type"])
+            material[elem_name] = func_type(elem.text)
+    material["colorizeLODOption"] = str(material["colorizeLODOption"])
+    material["strandBlendMode"] = str(material["strandBlendMode"])
+    if material["diffuseBoneIndex"] >= numBones:
+        material["diffuseBoneIndex"] = 0
+    material["diffuseBoneIndex"] = str(material["diffuseBoneIndex"])
+    
+    SetUpHairworksMaterial(obj, main_coll, material)

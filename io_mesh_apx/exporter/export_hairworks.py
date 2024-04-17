@@ -6,19 +6,24 @@ from mathutils import Matrix
 import numpy as np
 from bpy_extras.object_utils import object_data_add
 from io_mesh_apx.exporter.template_hairworks import template_hairworks
-from io_mesh_apx.utils import applyTransforms, TriangulateActiveMesh
+from io_mesh_apx.utils import applyTransforms, TriangulateActiveMesh, selectOnly, GetCollection, GetArmature
 from io_mesh_apx.tools.hair_tools import shape_hair_interp, create_curve
 
-def write_hairworks(context, filepath, resample_value, spline):
-    parent_coll = bpy.context.view_layer.active_layer_collection
+def write_hairworks(context, filepath, resample_value):
     kwargs = {}
+    main_coll = GetCollection()
+    assert(main_coll is not None)
     
     # Get transforms of the armature
-    if bpy.context.active_object.parent.type == "ARMATURE":
-        arma = bpy.context.active_object.parent
-        armaScale = np.array(arma.scale)
-        armaRot = np.array(arma.rotation_euler)
-        armaLoc = np.array(arma.location)
+    arma = GetArmature()
+    armaScale = np.array(arma.scale)
+    armaRot = np.array(arma.rotation_euler)
+    armaLoc = np.array(arma.location)
+    assert(arma.children is not None)
+    
+    # Make the main mesh active
+    main_mesh = arma.children[0]
+    selectOnly(main_mesh)
     
     # Use a duplicate growthmesh for resampling
     bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
@@ -30,7 +35,7 @@ def write_hairworks(context, filepath, resample_value, spline):
     duplicate_GrowthMesh = bpy.context.active_object
     
     # Create temporary curves and get all hair verts
-    create_curve(bpy.context)
+    create_curve(bpy.context, duplicate_GrowthMesh)
     curve_coll_temp = bpy.context.view_layer.active_layer_collection.collection
     
     # Apply transforms
@@ -40,13 +45,10 @@ def write_hairworks(context, filepath, resample_value, spline):
     TriangulateActiveMesh()
     # Reapply hair after triangulation as it messes with the hair,
     # and get all hair coordinates at the same time
-    hair_verts = shape_hair_interp(bpy.context)
+    hair_verts = shape_hair_interp(bpy.context, duplicate_GrowthMesh, curve_coll_temp.name)
     
     #Back to the state before corrections
-    bpy.context.view_layer.active_layer_collection = parent_coll
-    
-    # Spline Multiplier
-    kwargs['splines'] = spline
+    GetCollection()
     
     #%% numHairs totalVerts
     hairs = duplicate_GrowthMesh.particle_systems[-1].particles
@@ -120,7 +122,7 @@ def write_hairworks(context, filepath, resample_value, spline):
         i = 0
         for g in vertex.groups:
             g_weight = g.weight
-            if i < 4 and g_weight:
+            if i < 4 and g_weight and vertex_groups[g.group].name in boneIndex:
                 boneIndices[-1][i] = boneIndex[vertex_groups[g.group].name]
                 boneWeights[-1][i] = g_weight
                 i += 1
@@ -133,8 +135,9 @@ def write_hairworks(context, filepath, resample_value, spline):
     kwargs['boneSpheres'] = ""
     sphereIndex = {}
     sphereAll = []
-    if "Collision Spheres" in parent_coll.collection.children:
-        spheres = parent_coll.collection.children['Collision Spheres'].objects
+    sphere_coll = GetCollection("Collision Spheres", make_active=False)
+    if sphere_coll:
+        spheres = sphere_coll.objects
         if spheres:
             for i, sphere in enumerate(spheres):
                 sphere_name = sphere.name
@@ -150,8 +153,9 @@ def write_hairworks(context, filepath, resample_value, spline):
     kwargs['numBoneCapsuleIndices'] = "0"
     kwargs['boneCapsuleIndices'] = ""
     boneCapsules = []
-    if "Collision Spheres Connections" in parent_coll.collection.children and "Collision Spheres" in parent_coll.collection.children:
-        connections = parent_coll.collection.children['Collision Spheres Connections'].objects
+    connection_coll = GetCollection("Collision Connections", make_active=False)
+    if sphere_coll and connection_coll:
+        connections = connection_coll.objects
         if connections:
             for connection in connections:
                 connection_name = connection.name
@@ -167,20 +171,37 @@ def write_hairworks(context, filepath, resample_value, spline):
     kwargs['numPinConstraints'] = "0"
     kwargs['pinConstraints'] = ""
     pinAll = []
-    if "Pin Constraints" in parent_coll.collection.children:
-        pins = parent_coll.collection.children['Pin Constraints'].objects
+    pin_coll = GetCollection("Pin Constraints", make_active=False)
+    if pin_coll:
+        pins = pin_coll.objects
         if pins:
             for pin in pins:
                 pin_name = pin.name
                 pinBoneName = pin_name[pin_name.find("_")+1:pin_name.rfind("_")]
                 pinLocation, pinRadius = applyTransforms(pin, armaScale, armaRot, armaLoc, True, True, bones[pinBoneName])
-                pinAll.append([boneIndex[pinBoneName], pinRadius, *pinLocation, 0,0,"false","false","fasle",0,0,0,0])
+                pinAll.append([boneIndex[pinBoneName], pinRadius, *pinLocation, pin["pinStiffness1"], pin["influenceFallOff"], str(pin["useDynamicPin1"]).lower(), str(pin["doLra"]).lower(), str(pin["useStiffnessPin"]).lower(), *pin["influenceFallOffCurve"]])
             kwargs['numPinConstraints'] = len(pins)
             kwargs['pinConstraints'] = ','.join(' '.join(map(str, x)) for x in pinAll) 
     
     # Delete the duplicate growthmesh used for resampling as well as the temporary curve collection
     bpy.data.objects.remove(duplicate_GrowthMesh)
     bpy.data.collections.remove(curve_coll_temp)
+    
+    # Write Simulation Material
+    for key in main_mesh.keys():
+        kwargs[key] = main_mesh[key]
+        if type(kwargs[key]) == bool:
+            kwargs[key] = str(kwargs[key]).lower()
+        elif hasattr(kwargs[key], '__len__') and not isinstance(kwargs[key], str):
+            kwargs[key] = ' '.join(map(str, list(kwargs[key])))
+            
+    # Add path to textures
+    if main_mesh["textureDirName"]:
+        for key in ["densityTexture", "rootColorTexture", "tipColorTexture", "widthTexture", "rootWidthTexture",
+        "tipWidthTexture", "stiffnessTexture","rootStiffnessTexture", "clumpScaleTexture", "clumpRoundnessTexture",
+        "clumpNoiseTexture", "waveScaletexture", "waveFreqTexture", "strandTexture", "lengthTexture", "specularTexture"]:
+            if kwargs[key]:
+                kwargs[key] = main_mesh["textureDirName"] + "\\" + kwargs[key]
     
     #%% write the template with generated values
     with open(filepath, 'w', encoding = 'utf-8') as f:

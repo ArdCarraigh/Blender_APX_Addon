@@ -5,21 +5,48 @@ import bpy
 import random, colorsys
 import xml.etree.ElementTree as ET
 import numpy as np
+import os.path
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector, Matrix
 from io_mesh_apx.number_to_words import getWords
-from io_mesh_apx.tools.paint_tools import add_physx_clothing_palette
 from io_mesh_apx.tools.collision_tools import *
-from io_mesh_apx.utils import find_elem, to_array, JoinThem, selectOnly
+from io_mesh_apx.utils import find_elem, to_array, JoinThem, selectOnly, simValueType, SetAttributes, SetUpWind, SetUpDrag
+from io_mesh_apx.tools.setup_tools import SetUpClothMaterial
 
 def read_clothing(context, filepath, rotate_180, rm_ph_me):
+    # Create Main Collection #
+    file_name = os.path.splitext(os.path.basename(filepath))[0]
+    parent_coll = bpy.context.view_layer.active_layer_collection
+    main_coll = bpy.data.collections.new(file_name)
+    main_coll["PhysXAssetType"] = "Clothing"
+    parent_coll.collection.children.link(main_coll)
+    bpy.context.view_layer.active_layer_collection = parent_coll.children[main_coll.name]
     
-    # Create Color Palette
-    add_physx_clothing_palette()
+    # Set Up Wind
+    SetUpWind()
+    SetUpDrag()
 
     # Parse File
     root = ET.parse(filepath).getroot() #NxParameters element
     ClothingAssetParameters = find_elem(root, "value", "className", "ClothingAssetParameters")[0] #extra [0] to index into <struct>
+    
+    # Simulation Materials
+    sim_mats = []
+    sim_mats_xml = find_elem(ClothingAssetParameters, "value", "name", "materialLibrary")[0][0] #extra [0][0] to index into <array name="materials">
+    for mat in sim_mats_xml:
+        sim_mat = {}
+        for elem in mat[1:]:
+            name = elem.attrib["name"]
+            if name == "zeroStretchStiffness":
+                pass
+            elif name in ["verticalStiffnessScaling", "horizontalStiffnessScaling", "bendingStiffnessScaling", "shearingStiffnessScaling"]:
+                for elem2 in elem:
+                    func_type = simValueType(elem2.attrib["type"])
+                    sim_mat[name + "_" + elem2.attrib["name"]] = func_type(elem2.text)
+            else:
+                func_type = simValueType(elem.attrib["type"])
+                sim_mat[elem.attrib["name"]] = func_type(elem.text)
+        sim_mats.append(sim_mat)
     
     # Armature and Bones
     Armature = find_elem(ClothingAssetParameters, "array", "name", "bones")
@@ -153,20 +180,6 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
                 v_col = mesh.color_attributes.new(name = 'Color', domain = 'POINT', type = 'BYTE_COLOR')
                 v_col.data.foreach_set("color", vertexColor)
                 del(vertexColor)
-            
-            # Clothing Paints
-            n_data_array = len(mesh.vertices)
-            magenta_array = np.full((n_data_array,4), [1,0,1,1]).flatten()
-            white_array = np.full((n_data_array,4), [1,1,1,1]).flatten()
-            green_array = np.full((n_data_array,4), [0,1,0,1]).flatten()
-            for k in ["MaximumDistance", "BackstopRadius", "BackstopDistance", "Drive1", "Latch1"]:
-                v_col = mesh.color_attributes.new(name = k, domain = 'POINT', type = 'BYTE_COLOR')
-                if k == "Drive1":
-                    v_col.data.foreach_set("color", white_array)
-                elif k == "Latch1":
-                    v_col.data.foreach_set("color", magenta_array)
-                else:
-                    v_col.data.foreach_set("color", green_array)
                     
             # Material
             if materialNames[j] in bpy.data.materials:
@@ -243,51 +256,58 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         mesh.shade_smooth()
         
         # Normals
-        #bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-        #bpy.ops.mesh.normals_make_consistent(inside=False)
-        #bpy.ops.object.mode_set(mode='OBJECT')
         mesh.normals_split_custom_set_from_vertices(normals)
         mesh.use_auto_smooth = True
         #Tangents are read-only in Blender, we can't import them
                 
         # Clothing Paints
-        array_ones = np.ones(len(constrainCoefficients))
+        n_verts = len(constrainCoefficients)
         constrainCoefficients = constrainCoefficients.T
         #Scale Maximum Distance Paint
         if maximumMaxDistance:
             constrainCoefficients[0] = constrainCoefficients[0]/maximumMaxDistance
-        for k, col_name in enumerate(["MaximumDistance", "BackstopRadius", "BackstopDistance"]):
-            data_array = np.c_[np.repeat(constrainCoefficients[k],3).reshape((-1,3)), array_ones]
-            data_array[data_array[:,0] == 0] = [1,0,1,1]
-            v_col = mesh.color_attributes.new(name = col_name, domain = 'POINT', type = 'BYTE_COLOR')
-            v_col.data.foreach_set("color", data_array.flatten())
+        max_dist_group = obj.vertex_groups.new(name="PhysXMaximumDistance")
+        back_rad_group = obj.vertex_groups.new(name="PhysXBackstopRadius")
+        back_dist_group = obj.vertex_groups.new(name="PhysXBackstopDistance")
+        for k in range(n_verts):
+            max_dist_group.add([k], constrainCoefficients[0][k], 'REPLACE')
+            back_rad_group.add([k], constrainCoefficients[1][k], 'REPLACE')
+            back_dist_group.add([k], constrainCoefficients[2][k], 'REPLACE')
                 
         # Rotation of the mesh if requested
         if rotate_180:
             obj.rotation_euler[2] = np.pi
         
-        #Parenting
-        obj.select_set(state=True)
-        bpy.context.view_layer.objects.active = arma
-        bpy.ops.object.parent_set(type="ARMATURE_NAME", xmirror=False, keep_transform=False)
-        bpy.context.view_layer.objects.active = None
-        bpy.ops.object.select_all(action='DESELECT')
-        # Bone Weighting
-        for k, (indices, weights) in enumerate(zip(boneIndices, boneWeights)):
-            for l in range(numBonesPerVertex):
-                weight = weights[l]
-                if weight:
-                    obj.vertex_groups[boneNames[indices[l]]].add([k], weight, 'REPLACE')
+        ## Parenting # Not needed for Physical Mesh
+        #obj.select_set(state=True)
+        #bpy.context.view_layer.objects.active = arma
+        #bpy.ops.object.parent_set(type="ARMATURE_NAME", xmirror=False, keep_transform=False)
+        #bpy.context.view_layer.objects.active = None
+        #bpy.ops.object.select_all(action='DESELECT')
+        ## Bone Weighting
+        #for k, (indices, weights) in enumerate(zip(boneIndices, boneWeights)):
+        #    for l in range(numBonesPerVertex):
+        #        weight = weights[l]
+        #        if weight:
+        #            obj.vertex_groups[boneNames[indices[l]]].add([k], weight, 'REPLACE')
             
-        # Copy vertex color data to Graphical Meshes
+        # Copy vertex groups data to Graphical Meshes
+        graph_mesh.vertex_groups.new(name="SimplyPin")
+        graph_mesh.vertex_groups.new(name="PhysXMaximumDistance")
+        graph_mesh.vertex_groups.new(name="PhysXBackstopRadius")
+        graph_mesh.vertex_groups.new(name="PhysXBackstopDistance")
+        graph_mesh.vertex_groups.new(name="PhysXDrive1")
+        graph_mesh.vertex_groups.new(name="PhysXLatch1")
         bpy.context.view_layer.objects.active = graph_mesh
         paintModifier = graph_mesh.modifiers.new(type='DATA_TRANSFER', name = "ClothingPaintTransfer")
         paintModifier.object = obj
         paintModifier.use_vert_data = True
-        paintModifier.data_types_verts = {'COLOR_VERTEX'}
+        paintModifier.data_types_verts = {'VGROUP_WEIGHTS'}
         paintModifier.vert_mapping = 'NEAREST'
         paintModifier.use_max_distance = True
         paintModifier.max_distance = 0.000001
+        paintModifier.layers_vgroup_select_src = 'ALL'
+        paintModifier.layers_vgroup_select_dst = 'NAME'
         bpy.ops.object.modifier_apply(modifier = paintModifier.name)
                         
         # Delete physical mesh if requested
@@ -295,55 +315,49 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
             bpy.data.objects.remove(obj)
         
         # Interpret Drive/Latch
-        mesh = graph_mesh.data
-        empty_array = np.zeros(len(mesh.vertices)*4)
-        for k in ["MaximumDistance", "BackstopRadius", "BackstopDistance", "Drive1", "Latch1"]:
-            data_array = empty_array
-            mesh.color_attributes[k].data.foreach_get("color", data_array)
-            data_array = data_array.reshape((-1,4))
-            if k == "MaximumDistance":
-                check_array = data_array[:,0] < data_array[:,1]
-            if k == "Latch1":
-                data_array[check_array] = [1,1,1,1]  
+        for k, vert in enumerate(graph_mesh.data.vertices):
+            existing_layers = [graph_mesh.vertex_groups[g.group].name for g in vert.groups]
+            if "PhysXMaximumDistance" in existing_layers:
+                graph_mesh.vertex_groups["PhysXDrive1"].add([k], 1, 'REPLACE')
+                graph_mesh.vertex_groups["PhysXLatch1"].add([k], 0, 'REPLACE')
             else:
-                data_array[check_array] = [1,0,1,1]
-            mesh.color_attributes[k].data.foreach_set("color", data_array.flatten())
-    
+                graph_mesh.vertex_groups["PhysXDrive1"].add([k], 0, 'REPLACE')
+                graph_mesh.vertex_groups["PhysXLatch1"].add([k], 1, 'REPLACE')
+                
+        # Setup Cloth Material
+        SetUpClothMaterial(graph_mesh, main_coll, maximumMaxDistance, sim_mats[i])
+        
+    # Setup Cloth Simulation
+    sim_xml = find_elem(ClothingAssetParameters, "struct", "name", "simulation")
+    sim = {}
+    for elem in sim_xml:
+        func_type = simValueType(elem.attrib["type"])
+        sim[elem.attrib["name"]] = func_type(elem.text)
+    SetAttributes(bpy.context.window_manager.physx.cloth, sim)
+        
     # Collision Capsules
     boneActors_text = find_elem(ClothingAssetParameters, "array", "name", "boneActors").text
     if boneActors_text:
         boneActors = to_array(boneActors_text, float, [-1, 17])
         for b_capsule in boneActors:
-            bpy.context.view_layer.objects.active = arma
-            skeleton.bones.active = skeleton.bones[boneNames[int(b_capsule[0])]]
-            boneCapsuleRadius = b_capsule[3]
-            boneCapsuleHeight = b_capsule[4]
+            boneName = boneNames[int(b_capsule[0])]
             boneCapsuleMatrix = Matrix(np.array(b_capsule[5:]).reshape([-1, 4, 3]).T).to_4x4()
-            matrix_world = skeleton.bones.active.matrix_local @ boneCapsuleMatrix
-            coordinates_world = matrix_world.translation
-            boneCapsuleRotation = matrix_world.to_euler()
-            add_capsule(context = bpy.context, radius = boneCapsuleRadius, height = boneCapsuleHeight, location = coordinates_world, rotation = boneCapsuleRotation, use_location = True)
+            matrix_world = skeleton.bones[boneName].matrix_local @ boneCapsuleMatrix
+            add_capsule(bpy.context, boneName, b_capsule[3], b_capsule[4], matrix_world.translation, matrix_world.to_euler(), True)
     
     # Collision Sphere       
     boneSpheres_text = find_elem(ClothingAssetParameters, "array", "name", "boneSpheres").text
     if boneSpheres_text:
         boneSpheres = to_array(boneSpheres_text, float, [-1, 5])
         sphere_objs = []
-        for b_sphere in boneSpheres: 
-            bpy.context.view_layer.objects.active = arma
-            skeleton.bones.active = skeleton.bones[boneNames[int(b_sphere[0])]]
-            coordinates_world = skeleton.bones.active.matrix_local @ Vector(b_sphere[2:5])
-            boneSphereRadius = b_sphere[1]
-            sphere_objs.append(add_sphere(bpy.context, boneSphereRadius, coordinates_world, True))
+        for b_sphere in boneSpheres:
+            boneName = boneNames[int(b_sphere[0])]
+            coordinates_world = skeleton.bones[boneName].matrix_local @ Vector(b_sphere[2:5])
+            sphere_objs.append(add_sphere(bpy.context, boneName, b_sphere[1], coordinates_world, True))
             
     # Collision Sphere Connections 
     boneCapsuleIndices_text = find_elem(ClothingAssetParameters, "array", "name", "boneSphereConnections").text
     if boneCapsuleIndices_text:
         boneCapsuleIndices = to_array(boneCapsuleIndices_text, int, [-1, 2])
         for a, b in boneCapsuleIndices:
-            sphere_a = sphere_objs[a]
-            sphere_b = sphere_objs[b]
-            selectOnly(sphere_a)
-            bpy.context.view_layer.objects.active = sphere_b
-            sphere_b.select_set(state=True)
-            add_connection(context = bpy.context)
+            add_connection(bpy.context, [sphere_objs[a], sphere_objs[b]])

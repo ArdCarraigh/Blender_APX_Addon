@@ -1,6 +1,6 @@
 # Blender_APX_Addon
  Import/export .apx cloth and hair simulation files into/from blender.
- Developed for Blender 3.5.0, other versions are not tested.
+ Developed for Blender 3.6.5, other versions are not tested.
 
  Clothing APX - Import:
  

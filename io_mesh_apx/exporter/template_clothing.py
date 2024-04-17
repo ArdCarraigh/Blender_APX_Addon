@@ -169,15 +169,15 @@ templateClothingMain = '''<!DOCTYPE NxParameters>
       {graphicalMeshes}
     </array>
     <struct name="simulation">
-      <value name="hierarchicalLevels" type="U32">0</value>
-      <value name="thickness" type="F32">0.00999999978</value>
-      <value name="virtualParticleDensity" type="F32">0</value>
-      <value name="gravityDirection" type="Vec3">0 0 -1</value>
-      <value name="sleepLinearVelocity" type="F32">0</value>
-      <value name="disableCCD" type="Bool">true</value>
-      <value name="untangling" type="Bool">false</value>
-      <value name="twowayInteraction" type="Bool">false</value>
-      <value name="restLengthScale" type="F32">1</value>
+      <value name="hierarchicalLevels" type="U32">{hierarchicalLevels}</value>
+      <value name="thickness" type="F32">{thickness}</value>
+      <value name="virtualParticleDensity" type="F32">{virtualParticleDensity}</value>
+      <value name="gravityDirection" type="Vec3">{gravityDirection}</value>
+      <value name="sleepLinearVelocity" type="F32">{sleepLinearVelocity}</value>
+      <value name="disableCCD" type="Bool">{disableCCD}</value>
+      <value name="untangling" type="Bool">{untangling}</value>
+      <value name="twowayInteraction" type="Bool">{twowayInteraction}</value>
+      <value name="restLengthScale" type="F32">{restLengthScale}</value>
     </struct>
     <array name="bones" size="{numBones}" type="Struct">
       {bones}
@@ -216,50 +216,49 @@ templateClothingMain = '''<!DOCTYPE NxParameters>
 
 templateSimulationMaterial = '''<struct>
             <value name="materialName" type="String">{simulationMaterialName}</value>
-            <value name="verticalStretchingStiffness" type="F32">1</value>
-            <value name="horizontalStretchingStiffness" type="F32">1</value>
-            <value name="bendingStiffness" type="F32">0.5</value>
-            <value name="shearingStiffness" type="F32">0.5</value>
-            <value name="zeroStretchStiffness" type="F32">0</value>
-            <value name="tetherStiffness" type="F32">1</value>
-            <value name="tetherLimit" type="F32">1</value>
-            <value name="orthoBending" type="Bool">false</value>
+            <value name="verticalStretchingStiffness" type="F32">{verticalStretchingStiffness}</value>
+            <value name="horizontalStretchingStiffness" type="F32">{horizontalStretchingStiffness}</value>
+            <value name="bendingStiffness" type="F32">{bendingStiffness}</value>
+            <value name="shearingStiffness" type="F32">{shearingStiffness}</value>
+            <value name="tetherStiffness" type="F32">{tetherStiffness}</value>
+            <value name="tetherLimit" type="F32">{tetherLimit}</value>
+            <value name="orthoBending" type="Bool">{orthoBending}</value>
             <struct name="verticalStiffnessScaling">
-              <value name="compressionRange" type="F32">1</value>
-              <value name="stretchRange" type="F32">1</value>
-              <value name="scale" type="F32">0.5</value>
+              <value name="compressionRange" type="F32">{verticalStiffnessScaling_compressionRange}</value>
+              <value name="stretchRange" type="F32">{verticalStiffnessScaling_stretchRange}</value>
+              <value name="scale" type="F32">{verticalStiffnessScaling_scale}</value>
             </struct>
             <struct name="horizontalStiffnessScaling">
-              <value name="compressionRange" type="F32">1</value>
-              <value name="stretchRange" type="F32">1</value>
-              <value name="scale" type="F32">0.5</value>
+              <value name="compressionRange" type="F32">{horizontalStiffnessScaling_compressionRange}</value>
+              <value name="stretchRange" type="F32">{horizontalStiffnessScaling_stretchRange}</value>
+              <value name="scale" type="F32">{horizontalStiffnessScaling_scale}</value>
             </struct>
             <struct name="bendingStiffnessScaling">
-              <value name="compressionRange" type="F32">1</value>
-              <value name="stretchRange" type="F32">1</value>
-              <value name="scale" type="F32">0.5</value>
+              <value name="compressionRange" type="F32">{bendingStiffnessScaling_compressionRange}</value>
+              <value name="stretchRange" type="F32">{bendingStiffnessScaling_stretchRange}</value>
+              <value name="scale" type="F32">{bendingStiffnessScaling_scale}</value>
             </struct>
             <struct name="shearingStiffnessScaling">
-              <value name="compressionRange" type="F32">1</value>
-              <value name="stretchRange" type="F32">1</value>
-              <value name="scale" type="F32">0.5</value>
+              <value name="compressionRange" type="F32">{shearingStiffnessScaling_compressionRange}</value>
+              <value name="stretchRange" type="F32">{shearingStiffnessScaling_stretchRange}</value>
+              <value name="scale" type="F32">{shearingStiffnessScaling_scale}</value>
             </struct>
-            <value name="damping" type="F32">0.5</value>
-            <value name="stiffnessFrequency" type="F32">100</value>
-            <value name="drag" type="F32">0</value>
-            <value name="comDamping" type="Bool">false</value>
-            <value name="friction" type="F32">0.5</value>
-            <value name="massScale" type="F32">25</value>
-            <value name="solverIterations" type="U32">5</value>
-            <value name="solverFrequency" type="F32">250</value>
-            <value name="gravityScale" type="F32">1</value>
-            <value name="inertiaScale" type="F32">0.5</value>
-            <value name="hardStretchLimitation" type="F32">0</value>
-            <value name="maxDistanceBias" type="F32">0</value>
-            <value name="hierarchicalSolverIterations" type="U32">0</value>
-            <value name="selfcollisionThickness" type="F32">0</value>
-            <value name="selfcollisionSquashScale" type="F32">0</value>
-            <value name="selfcollisionStiffness" type="F32">0</value>
+            <value name="damping" type="F32">{damping}</value>
+            <value name="stiffnessFrequency" type="F32">{stiffnessFrequency}</value>
+            <value name="drag" type="F32">{drag}</value>
+            <value name="comDamping" type="Bool">{comDamping}</value>
+            <value name="friction" type="F32">{friction}</value>
+            <value name="massScale" type="F32">{massScale}</value>
+            <value name="solverIterations" type="U32">{solverIterations}</value>
+            <value name="solverFrequency" type="F32">{solverFrequency}</value>
+            <value name="gravityScale" type="F32">{gravityScale}</value>
+            <value name="inertiaScale" type="F32">{inertiaScale}</value>
+            <value name="hardStretchLimitation" type="F32">{hardStretchLimitation}</value>
+            <value name="maxDistanceBias" type="F32">{maxDistanceBias}</value>
+            <value name="hierarchicalSolverIterations" type="U32">{hierarchicalSolverIterations}</value>
+            <value name="selfcollisionThickness" type="F32">{selfcollisionThickness}</value>
+            <value name="selfcollisionSquashScale" type="F32">{selfcollisionSquashScale}</value>
+            <value name="selfcollisionStiffness" type="F32">{selfcollisionStiffness}</value>
           </struct>'''
           
 templatePhysicalMesh = '''<value type="Ref" included="1" className="ClothingPhysicalMeshParameters" version="0.10" checksum="0xcffdb608 0x34772e05 0xb720e9cd 0xf962cbf8">      

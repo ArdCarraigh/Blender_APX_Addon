@@ -7,28 +7,27 @@ import numpy as np
 from copy import deepcopy
 from mathutils import Matrix, Vector
 from io_mesh_apx.exporter.template_clothing import *
-from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, CheckPhysicalPaint, apply_drive
-from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices
+from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, apply_drive
+from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray
     
-def write_clothing(context, filepath, maximumMaxDistance):
+def write_clothing(context, filepath):
     kwargs = {}
-    parent_coll = bpy.context.view_layer.active_layer_collection
+    main_coll = GetCollection()
+    assert(main_coll is not None)
     
     # Get transforms of the armature
-    if bpy.context.active_object.type == "ARMATURE":
-        arma = bpy.context.active_object
-    elif bpy.context.active_object.parent.type == "ARMATURE":
-        arma = bpy.context.active_object.parent
+    arma = GetArmature()
     armaScale = np.array(arma.scale)
     armaRot = np.array(arma.rotation_euler)
     armaLoc = np.array(arma.location)
+    assert(arma.children is not None)
     
     #Get the meshes to export
-    if "lod0" not in arma.children[0].name:
-        objects = [arma.children[0]]
+    obvg = arma.children[0]
+    if "lod0" not in obvg.name:
+        objects = [obvg]
     else:
         objects = arma.children
-    obvg = objects[0]
     num_objects = len(objects)     
     kwargs['numPhysicalMeshes'] = num_objects
     kwargs['numGraphicalMeshes'] = kwargs['numPhysicalMeshes']
@@ -63,12 +62,14 @@ def write_clothing(context, filepath, maximumMaxDistance):
     bindPoses = bindPoses[:,:,:3]
     
     # Get the used bones for collision volumes
-    if "Collision Spheres" in parent_coll.collection.children:
-        spheres = parent_coll.collection.children['Collision Spheres'].objects
+    sphere_coll = GetCollection("Collision Spheres", make_active=False)
+    capsule_coll = GetCollection("Collision Capsules", make_active=False)
+    if sphere_coll:
+        spheres = sphere_coll.objects
         sphere_bone_names = [x.name[x.name.find("_")+1:x.name.rfind("_")] for x in spheres]
         spheresBool = [bone.name in sphere_bone_names for bone in bones]
-    if "Collision Capsules" in parent_coll.collection.children:
-        capsules = parent_coll.collection.children['Collision Capsules'].objects
+    if capsule_coll:
+        capsules = capsule_coll.objects
         capsule_bone_names = [x.name[x.name.find("_")+1:x.name.rfind("_")] for x in capsules]
         capsulesBool = [bone.name in capsule_bone_names for bone in bones]
     
@@ -119,7 +120,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         duplicate_obj = bpy.context.active_object
         applyTransforms(duplicate_obj, armaScale, armaRot, armaLoc)
         TriangulateActiveMesh()
-        apply_drive(context = bpy.context, group="1", invert = False)
+        apply_drive(duplicate_obj, 1, False)
         
         # Export Physical Mesh
         # Duplication and preparation
@@ -128,11 +129,14 @@ def write_clothing(context, filepath, maximumMaxDistance):
         physicalMesh.name = "tempPhysicalMesh"
         physics_mesh = physicalMesh.data
         n_groups, driveDataGraphical, latchDataGraphical = cleanUpDriveLatchGroups(physicalMesh, True)
-        drive_bool_array = np.any(latchDataGraphical > 0.3, axis = 1)
+        drive_bool_array = np.any(latchDataGraphical > 0.6, axis = 1)
         if ".select_vert" not in physics_mesh.attributes:
             physics_mesh.attributes.new(".select_vert", "BOOLEAN", "POINT")
         physics_mesh.attributes[".select_vert"].data.foreach_set("value", drive_bool_array)
         bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.delete(type='VERT')
+        bpy.ops.mesh.select_face_by_sides(number=3, type='EQUAL', extend=False)
+        bpy.ops.mesh.select_all(action='INVERT')
         bpy.ops.mesh.delete(type='VERT')
         bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.remove_doubles()
@@ -140,14 +144,10 @@ def write_clothing(context, filepath, maximumMaxDistance):
         
         # Get Faces and Maximum Distance Paint to Order Vertices
         #MaximumDistance
-        n_vertices = len(physics_mesh.vertices)
-        temp_max_dist = np.zeros(n_vertices * 4)
-        physics_mesh.color_attributes["MaximumDistance"].data.foreach_get("color", temp_max_dist)
-        temp_max_dist = temp_max_dist.reshape(-1,4)
-        temp_check_array = np.array([CheckPhysicalPaint(x, 0.1) for x in temp_max_dist])
-        temp_max_dist = temp_max_dist[:,0]
-        temp_max_dist[temp_check_array & (temp_max_dist == 0)] = 0.0001
-        temp_max_dist[~temp_check_array] = 0
+        verts = physics_mesh.vertices
+        n_vertices = len(verts)
+        vertex_groups = physicalMesh.vertex_groups
+        temp_max_dist = getWeightArray(verts, vertex_groups["PhysXMaximumDistance"])
         #Faces and Ordering
         n_face_indices = len(physics_mesh.polygons) * 3
         face_array = np.zeros(n_face_indices, dtype=int)
@@ -178,33 +178,30 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_physical['skinningNormals_PhysicalMesh'] = kwargs_physical['normals_PhysicalMesh']
         
         # Constrain Coefficients
+        maximumMaxDistance = obj.modifiers["PinGroup"].node_group.nodes["Maximum Max Distance"].inputs[1].default_value
         n_groups, driveDataPhysical, latchDataPhysical = cleanUpDriveLatchGroups(physicalMesh, True)
         driveLatchGroupPhysical = np.argmax(driveDataPhysical, axis=1)
-        color_array = np.zeros(n_vertices * 4)
         constrainCoefficients = []
-        for vc in ["MaximumDistance", "BackstopRadius", "BackstopDistance"]:
-            physics_mesh.color_attributes[vc].data.foreach_get("color", color_array)
-            color_array2 = color_array.reshape(-1,4)
-            check_array = np.array([CheckPhysicalPaint(x, 0.1) for x in color_array2])
-            color_array2 = color_array2[:,0]
-            color_array2[check_array & (color_array2 == 0)] = 0.0001
-            color_array2[~check_array] = 0
-            if vc == "MaximumDistance": color_array2 = color_array2 * maximumMaxDistance
+        for vg in ["PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance"]:
+            color_array2 = getWeightArray(physics_mesh.vertices, vertex_groups[vg])
+            if vg == "MaximumDistance": color_array2 *= maximumMaxDistance
             constrainCoefficients.append(deepcopy(color_array2))
         constrainCoefficients = np.array(constrainCoefficients).T
-        kwargs_physical['constrainCoefficients_PhysicalMesh'] = ','.join([' '.join(map(str, x)) for x in constrainCoefficients])        
+        kwargs_physical['constrainCoefficients_PhysicalMesh'] = ','.join([' '.join(map(str, x)) for x in constrainCoefficients])
+        
+        # Maximum Max Distance
+        kwargs_physical['maximumMaxDistance'] = np.max(constrainCoefficients[:,0])
                 
         # Get Bone Weights and Indices
         boneIndices = []
-        boneWeights = [] 
-        vertex_groups = physicalMesh.vertex_groups    
+        boneWeights = []  
         for vert in physics_mesh.vertices:
             boneIndices.append(np.full(4, numUsedBones-1, dtype=int))
             boneWeights.append(np.zeros(4, dtype=float))
             i = 0
             for g in vert.groups:
                 g_weight = g.weight
-                if i < 4 and g_weight:
+                if i < 4 and g_weight and vertex_groups[g.group].name in boneIndexInternal:
                     boneIndices[-1][i] = boneIndexInternal[vertex_groups[g.group].name]
                     boneWeights[-1][i] = g_weight
                     i += 1
@@ -227,9 +224,6 @@ def write_clothing(context, filepath, maximumMaxDistance):
         # Write Faces
         kwargs_physical['numFaceIndices_PhysicalMesh'] = n_face_indices
         kwargs_physical['faceIndices_PhysicalMesh'] = ' '.join(map(str,face_array))
-        
-        # Maximum Max Distance
-        kwargs_physical['maximumMaxDistance'] = np.max(constrainCoefficients[:,0])
         
         # Edges Length
         edge_array = np.zeros(len(physics_mesh.edges) * 2, dtype=int)
@@ -262,7 +256,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
         kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength']*0.1
         kwargs_lod['physicsSubmeshPartitioning'] = ''
         kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
-        if np.all(np.any(driveDataGraphical > 0.3, axis = 1)):
+        if np.all(np.any(driveDataGraphical > 0.6, axis = 1)):
             immediateClothMap_bool = True
             immediate_kdtree = MakeKDTreeFromObject(physicalMesh)
             immediateClothMap = []
@@ -404,7 +398,7 @@ def write_clothing(context, filepath, maximumMaxDistance):
                     i = 0
                     for g in vert.groups:
                         g_weight = g.weight
-                        if i < 4 and g_weight:
+                        if i < 4 and g_weight and vertex_groups[g.group].name in boneIndexInternal:
                             bone_id = boneIndexInternal[vertex_groups[g.group].name]
                             boneIndices[-1][i] = bone_id
                             # Add to the used bones for that mesh
@@ -483,7 +477,15 @@ def write_clothing(context, filepath, maximumMaxDistance):
         boundingBoxes.append(lodBoundingBox)
         
         # Simulation Materials
-        kwargs_materials['simulationMaterialName'] = meshLod.name
+        sim_mat_name = main_coll.name
+        if numLod: 
+            sim_mat_name += ("_LOD" + str(numLod))
+        kwargs_materials['simulationMaterialName'] = sim_mat_name
+        
+        for key in meshLod.keys():
+            kwargs_materials[key] = meshLod[key]
+            if type(kwargs_materials[key]) == bool:
+                kwargs_materials[key] = str(kwargs_materials[key]).lower()
         
         # Immediate Cloth Map
         if immediateClothMap_bool:
@@ -585,8 +587,9 @@ def write_clothing(context, filepath, maximumMaxDistance):
     kwargs['numBoneSphereConnections'] = "0"
     kwargs['boneSphereConnections'] = ""
     boneSphereConnections = []
-    if "Collision Spheres Connections" in parent_coll.collection.children and "Collision Spheres" in parent_coll.collection.children:
-        connections = parent_coll.collection.children['Collision Spheres Connections'].objects
+    connection_coll = GetCollection("Collision Connections", make_active=False)
+    if connection_coll and sphere_coll:
+        connections = connection_coll.objects
         if connections:
             for connection in connections:
                 connection_name = connection.name
@@ -656,6 +659,14 @@ def write_clothing(context, filepath, maximumMaxDistance):
     kwargs['bonesReferencedByMesh'] = bonesReferencedByMesh
     kwargs['rootBoneIndex'] = boneIndexInternal[bones[0].name]
     
+    # Write Simulation Parameters
+    for key in main_coll.keys():
+        kwargs[key] = main_coll[key]
+        if type(kwargs[key]) == bool:
+            kwargs[key] = str(kwargs[key]).lower()
+        elif key == 'gravityDirection':
+            kwargs[key] = ' '.join(map(str, list(kwargs[key])))
+            
     #%% write the template with generated values
     with open(filepath, 'w', encoding = 'utf-8') as f:
         f.write(templateClothingMain.format(**kwargs))

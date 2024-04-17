@@ -3,21 +3,16 @@
 
 import bpy
 import numpy as np
+import re
 from bpy_extras.object_utils import object_data_add
-from io_mesh_apx.utils import getConnectedVertices, getClosest, MakeKDTree, selectOnly, GetLoopDataPerVertex, RemoveDoubles
+from io_mesh_apx.utils import getConnectedVertices, getClosest, MakeKDTree, selectOnly, GetLoopDataPerVertex, RemoveDoubles, GetCollection, GetArmature, ImportTemplates, QuadrangulateActiveMesh
 from copy import deepcopy
 
-def add_pin(context, radius, location, use_location):
-    parent_coll = bpy.context.view_layer.active_layer_collection
-    if "Pin Constraints" in parent_coll.collection.children:
-        bpy.context.view_layer.active_layer_collection = parent_coll.children["Pin Constraints"]
-    else:
-        pin_coll = bpy.data.collections.new("Pin Constraints")
-        parent_coll.collection.children.link(pin_coll)
-        bpy.context.view_layer.active_layer_collection = parent_coll.children[pin_coll.name]
-    
-    arma = bpy.context.active_object
-    bone = bpy.context.active_bone
+def add_pin(context, bone, radius, location, use_location, pin_stiffness=0, influence_falloff=0, use_dynamic_pin=False, dolra=False, use_stiffness_pin=False, influence_falloff_curve=[0,0,0,0]):
+    collision_coll = GetCollection("Pin Constraints", True)
+    pins = collision_coll.objects
+    arma = GetArmature()
+    bone = arma.data.bones[bone]
     bonePos = np.array(bone.matrix_local.translation)
     boneScale = np.array(arma.scale)
     boneRotation = np.array(arma.rotation_euler)
@@ -35,22 +30,55 @@ def add_pin(context, radius, location, use_location):
     
     num = 1
     pin_temp_name = "pin_" + bone.name + "_"
-    while pin_temp_name + str(num) in bpy.context.view_layer.active_layer_collection.collection.objects:
+    while any([re.search(pin_temp_name + str(num), x.name) for x in pins]):
         num += 1
     else:
         pin.name = pin_temp_name + str(num)
         
+    pin.data.shade_smooth()     
     pin.display_type = 'WIRE'
     bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
     pin.rotation_euler = boneRotation
     pin.scale = boneScale
     pin.location = boneLocation
-    bpy.context.view_layer.active_layer_collection = parent_coll
+    arm_mod = pin.modifiers.new(type='ARMATURE', name = "Armature")
+    arm_mod.object = arma
+    bone_group = pin.vertex_groups.new(name=bone.name)
+    for k in range(len(pin.data.vertices)):
+        bone_group.add([k], 1, 'REPLACE')
+        
+    pin["pinStiffness1"] = pin_stiffness
+    pin["influenceFallOff"] = influence_falloff
+    pin["useDynamicPin1"] = use_dynamic_pin
+    pin["doLra"] = dolra
+    pin["useStiffnessPin"] = use_stiffness_pin
+    pin["influenceFallOffCurve"] = influence_falloff_curve
+    
+    if "InfluenceFallOffCurveTemplate" not in bpy.data.node_groups:
+        ImportTemplates()
+    node_group = bpy.data.node_groups["InfluenceFallOffCurveTemplate"].copy()
+    node_group.name = "InfluenceFallOffCurve"
+    node_mod = pin.modifiers.new(type='NODES', name = "InfluenceFallOffCurve")
+    node_mod.node_group = node_group
+    for i, point in enumerate(node_group.nodes["Float Curve"].mapping.curves[0].points):
+        point.location[1] = influence_falloff_curve[i]
+        
+    GetCollection()    
     
     return pin
+
+def remove_pin(context, index):
+    pin_coll = GetCollection("Pin Constraints", make_active = False)
     
-def shape_hair_interp(context, steps = 0, threshold = 0.001, hair_key = 0):
-    growthMesh = bpy.context.active_object
+    if pin_coll:
+        if pin_coll.objects:
+            bpy.data.objects.remove(pin_coll.objects[index], do_unlink=True)
+            
+        if not pin_coll.objects:
+            bpy.data.collections.remove(pin_coll, do_unlink=True)
+    
+def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.001, hair_key = 0, update_material = False):
+    selectOnly(growthMesh)
     mesh = growthMesh.data
     n_vertices = len(mesh.vertices)
     scale = np.array(growthMesh.scale)
@@ -58,16 +86,12 @@ def shape_hair_interp(context, steps = 0, threshold = 0.001, hair_key = 0):
     
     # Duplication and quadrangulation
     bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.mesh.tris_convert_to_quads()
-    bpy.ops.mesh.select_all(action="DESELECT")
-    bpy.ops.object.mode_set(mode='OBJECT')
+    QuadrangulateActiveMesh()
     duplicateMesh = bpy.context.active_object
     selectOnly(growthMesh)
     
     # Check curves
-    curves = bpy.context.view_layer.active_layer_collection.collection.objects
+    curves = bpy.data.collections[collection].objects
     n_curves = len(curves)
     segmentsCount = len(curves[0].data.splines[0].points)
     display_step = np.array(np.ceil(np.sqrt(segmentsCount)), dtype="byte")
@@ -76,19 +100,25 @@ def shape_hair_interp(context, steps = 0, threshold = 0.001, hair_key = 0):
         if curve.type == 'CURVE' or len(curve.data.splines[0].points) == segmentsCount:
             correctCurves += 1
     assert(correctCurves == n_curves)
+    
+    mods = growthMesh.modifiers
+    if "Hairworks" in mods:
+        mods.remove(mods['Hairworks'])
                 
-    bpy.ops.object.particle_system_add()
-    part_sys = growthMesh.particle_systems[-1]
-    part_sys.settings.type = 'HAIR'
-    part_sys.settings.hair_step = segmentsCount - 1
-    part_sys.settings.display_step = display_step 
-    part_sys.settings.emit_from = 'VERT'
-    part_sys.settings.use_emit_random = False
-    part_sys.settings.count = n_vertices
+    mod = growthMesh.modifiers.new(name="Hairworks", type="PARTICLE_SYSTEM")
+    part_sys = mod.particle_system
+    settings = part_sys.settings
+    settings.type = 'HAIR'
+    settings.hair_step = segmentsCount - 1
+    settings.display_step = display_step 
+    settings.emit_from = 'VERT'
+    settings.use_emit_random = False
+    settings.count = n_vertices
     growthMesh2 = growthMesh.evaluated_get(bpy.context.evaluated_depsgraph_get())
     bpy.ops.object.mode_set(mode='PARTICLE_EDIT')
-    bpy.context.tool_settings.particle_edit.use_emitter_deflect = False
-    bpy.context.tool_settings.particle_edit.display_step = display_step
+    particle_edit = bpy.context.tool_settings.particle_edit
+    particle_edit.use_emitter_deflect = False
+    particle_edit.display_step = display_step
     bpy.ops.particle.disconnect_hair()
     
     curves_pos = []
@@ -151,21 +181,32 @@ def shape_hair_interp(context, steps = 0, threshold = 0.001, hair_key = 0):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.data.objects.remove(duplicateMesh)
     
+    if update_material:
+        part_sys.use_hair_dynamics = True
+        settings.effector_weights.collection = GetCollection(make_active = False)
+        settings.child_type = 'INTERPOLATED'
+        settings.child_parting_factor = 0.5
+        settings.kink = 'WAVE'
+        wm = context.window_manager.physx.hair
+        for k in growthMesh.keys():
+            if hasattr(wm, k):
+                setattr(wm, k, growthMesh[k])
+    
     return curves_pos
         
-def create_curve(context):
+def create_curve(context, obj):
     # Get the growthmesh
-    obj = bpy.context.active_object
     growthMesh = obj.evaluated_get(context.evaluated_depsgraph_get())
     
     # Make a curve collection
     parent_coll = bpy.context.view_layer.active_layer_collection
     curve_coll = bpy.data.collections.new("Curves")
+    curve_coll["Hairworks Curves"] = True
     parent_coll.collection.children.link(curve_coll)
     bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll.name]
     
     # Create curves from guides
-    hairs = growthMesh.particle_systems[0].particles
+    hairs = growthMesh.modifiers['Hairworks'].particle_system.particles
     n_keys = len(hairs[0].hair_keys)
     curve_pos_array = np.zeros(n_keys * 3)
     array_ones = np.ones((n_keys,1))
@@ -190,8 +231,9 @@ def create_curve(context):
     # Make the growthmesh active again
     selectOnly(obj)
     
-def haircard_curve(context, uv_orientation = "-Y", tolerance = 0.05):
-    obj = bpy.context.active_object
+def haircard_curve(context, hair_mesh, uv_orientation = "-Y", tolerance = 0.05):
+    obj = bpy.data.objects[hair_mesh]
+    selectOnly(obj)
     meshScale = obj.scale
     meshRot = obj.rotation_euler
     meshLoc = obj.location
@@ -203,13 +245,16 @@ def haircard_curve(context, uv_orientation = "-Y", tolerance = 0.05):
     RemoveDoubles()
 
     #Make a temporary collection for separated hair meshes
+    GetCollection()
     parent_coll = bpy.context.view_layer.active_layer_collection
     coll_temp = bpy.data.collections.new("coll_temp")
     parent_coll.collection.children.link(coll_temp)
     bpy.context.view_layer.active_layer_collection = parent_coll.children[coll_temp.name]
 
     coll_temp.objects.link(obj_dup)
-    meshcoll.objects.unlink(obj_dup)
+    for coll in obj_dup.users_collection:
+        if coll != coll_temp:
+            coll.objects.unlink(obj_dup)
     bpy.ops.mesh.separate(type='LOOSE')
     objects = coll_temp.objects
     
@@ -252,10 +297,11 @@ def haircard_curve(context, uv_orientation = "-Y", tolerance = 0.05):
 
         coords_all.append(np.array(coords_obj))
         
-    n_obj += 1    
+    n_obj += 1
     n_step = round(n_point/n_obj)
     
     curve_coll = bpy.data.collections.new("Curves")
+    curve_coll["Hairworks Curves"] = True
     parent_coll.collection.children.link(curve_coll)
     bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll.name]
     
