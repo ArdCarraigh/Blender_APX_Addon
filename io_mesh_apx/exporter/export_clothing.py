@@ -118,6 +118,7 @@ def write_clothing(context, filepath):
         selectOnly(obj)
         bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
         duplicate_obj = bpy.context.active_object
+        duplicate_obj.name = "tempGraphicalMesh"
         applyTransforms(duplicate_obj, armaScale, armaRot, armaLoc)
         TriangulateActiveMesh()
         apply_drive(duplicate_obj, 1, False)
@@ -171,7 +172,6 @@ def write_clothing(context, filepath):
         kwargs_physical['vertices_PhysicalMesh'] = ', '.join([' '.join(map(str, x)) for x in vertices])
         
         # Normals
-        physics_mesh.calc_normals_split()
         normals = GetLoopDataPerVertex(physics_mesh, "NORMAL")
         kwargs_physical['normals_PhysicalMesh'] = ', '.join([' '.join(map(str, x)) for x in normals])
         #I don't know what to do with these skinning normals yet
@@ -290,10 +290,8 @@ def write_clothing(context, filepath):
         lodUsedBones = []
         numSubmesh = -1
         n_vertices_all = 0
-        obj_name = obj.name
         for submesh in arma.children:
-            submesh_name = submesh.name
-            if obj_name in submesh_name and obj_name != submesh_name and "tempPhysicalMesh" not in submesh_name:
+            if "tempGraphicalMesh" in submesh.name:
                 mesh = submesh.data
                 selectOnly(submesh)
                 numSubmesh += 1
@@ -337,7 +335,6 @@ def write_clothing(context, filepath):
                 bufferData.append(templateDataPositionNormal.format(**kwargs_vertices))
                 
                 # Get Normals
-                mesh.calc_normals_split()
                 normals = GetLoopDataPerVertex(mesh, "NORMAL")
                 kwargs_normals = {}
                 kwargs_normals['numData'] = n_vertices
@@ -461,7 +458,6 @@ def write_clothing(context, filepath):
         # Join submeshes back together        
         JoinThem(submesh_meshes)
         meshLod = bpy.context.active_object
-        mesh = meshLod.data
         
         # Write submeshes and materials
         kwargs_lod['numSubMeshes'] = len(submeshes)

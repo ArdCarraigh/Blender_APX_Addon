@@ -46,14 +46,12 @@ class PhysXDisplayPaintVectors(Operator):
         if PhysXDisplayPaintVectors._handle is None:
             coords, normals = vertices_global_co_normal(bpy.context.active_object)
             PhysXDisplayPaintVectors._handle = SpaceView3D.draw_handler_add(draw_callback_px, (self, context, coords, normals), 'WINDOW', 'POST_VIEW')
-            context.window_manager.physx.cloth.viewPaintVectors = True
 
     @staticmethod
     def handle_remove(self, context):
         if PhysXDisplayPaintVectors._handle is not None:
             SpaceView3D.draw_handler_remove(PhysXDisplayPaintVectors._handle, 'WINDOW')
         PhysXDisplayPaintVectors._handle = None
-        context.window_manager.physx.cloth.viewPaintVectors = False
 
     def execute(self, context):
         if context.area.type == 'VIEW_3D':

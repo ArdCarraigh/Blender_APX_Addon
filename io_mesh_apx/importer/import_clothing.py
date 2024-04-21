@@ -162,7 +162,6 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
             #bpy.ops.mesh.normals_make_consistent(inside=False)
             #bpy.ops.object.mode_set(mode='OBJECT')
             mesh.normals_split_custom_set_from_vertices(normals)
-            mesh.use_auto_smooth = True
             #Tangents are read-only in Blender, we can't import them
 
             # UVmaps creation
@@ -257,7 +256,6 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         
         # Normals
         mesh.normals_split_custom_set_from_vertices(normals)
-        mesh.use_auto_smooth = True
         #Tangents are read-only in Blender, we can't import them
                 
         # Clothing Paints

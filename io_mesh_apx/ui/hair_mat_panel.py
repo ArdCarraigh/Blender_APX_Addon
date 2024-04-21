@@ -179,424 +179,419 @@ class PhysXHairPhysicsPanel(bpy.types.Panel):
             arma = GetArmature()
             obj = arma.children[0]
             
-            row = layout.row()
-            box = row.box()
-            box.label(text="General")
-            box_row = box.row()
-            box_row.prop(wm, "simulate", text="Simulate")
-            if wm.simulate != obj["simulate"]:
-                wm.simulate = obj["simulate"]
-            box_row = box.row()
-            box_row.prop(wm, "massScale", text="Mass Scale")
-            if wm.massScale != obj["massScale"]:
-                wm.massScale = obj["massScale"]
-            box_row = box.row()
-            box_row.prop(wm, "damping", text="Damping")
-            if wm.damping != obj["damping"]:
-                wm.damping = obj["damping"]
-            box_row = box.row()
-            box_row.prop(wm, "inertiaScale", text="Inertia Scale")
-            if wm.inertiaScale != obj["inertiaScale"]:
-                wm.inertiaScale = obj["inertiaScale"]
-            box_row = box.row()
-            box_row.prop(wm, "inertiaLimit", text="Inertia Limit")
-            if wm.inertiaLimit != obj["inertiaLimit"]:
-                wm.inertiaLimit = obj["inertiaLimit"]
-            box_row = box.row()
-            box_row.label(text="Gravity")
-            box_row = box.row()
-            box_row.prop(wm, "gravity", text="")
-            if not all(np.array(wm.gravity) == np.array(obj["gravity"])):
-                wm.gravity = obj["gravity"]
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Wind")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "wind", text="")
-            if not all(np.array(wm.wind) == np.array(obj["wind"])):
-                wm.wind = obj["wind"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "windNoise", text="Noise")
-            if wm.windNoise != obj["windNoise"]:
-                wm.windNoise = obj["windNoise"]
+            header, panel = layout.panel("hair_general_panel", default_closed=False)
+            header.label(text="General")
+            if panel:
+                row = panel.row()
+                row.prop(wm, "simulate", text="Simulate")
+                if wm.simulate != obj["simulate"]:
+                    wm.simulate = obj["simulate"]
+                row = panel.row()
+                row.prop(wm, "massScale", text="Mass Scale")
+                if wm.massScale != obj["massScale"]:
+                    wm.massScale = obj["massScale"]
+                row = panel.row()
+                row.prop(wm, "damping", text="Damping")
+                if wm.damping != obj["damping"]:
+                    wm.damping = obj["damping"]
+                row = panel.row()
+                row.prop(wm, "inertiaScale", text="Inertia Scale")
+                if wm.inertiaScale != obj["inertiaScale"]:
+                    wm.inertiaScale = obj["inertiaScale"]
+                row = panel.row()
+                row.prop(wm, "inertiaLimit", text="Inertia Limit")
+                if wm.inertiaLimit != obj["inertiaLimit"]:
+                    wm.inertiaLimit = obj["inertiaLimit"]
+                row = panel.row()
+                row.label(text="Gravity")
+                row = panel.row()
+                row.prop(wm, "gravity", text="")
+                if not all(np.array(wm.gravity) == np.array(obj["gravity"])):
+                    wm.gravity = obj["gravity"]
+                row = panel.row()
+                box = row.box()
+                box.label(text="Wind")
+                box_row = box.row()
+                box_row.prop(wm, "wind", text="")
+                if not all(np.array(wm.wind) == np.array(obj["wind"])):
+                    wm.wind = obj["wind"]
+                box_row = box.row()
+                box_row.prop(wm, "windNoise", text="Noise")
+                if wm.windNoise != obj["windNoise"]:
+                    wm.windNoise = obj["windNoise"]
             
             layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Stiffness")
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Global")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "stiffnessTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "stiffnessTexture", text="", icon='TEXTURE')
-            if wm.stiffnessTexture != obj["stiffnessTexture"]:
-                wm.stiffnessTexture = obj["stiffnessTexture"]
-            split.prop(wm, "stiffnessTextureChan", text = "")
-            if wm.stiffnessTextureChan != obj["stiffnessTextureChan"]:
-                wm.stiffnessTextureChan = obj["stiffnessTextureChan"]
-            box_box_row = box_box.row()
-            split = box_box_row.split(factor = 0.85, align = True)
-            split.prop(wm, "stiffness", text="")
-            if wm.stiffness != obj["stiffness"]:
-                wm.stiffness = obj["stiffness"]
-            split.prop(wm, "stiffnessCurveToggle", text = "", toggle = True, icon = "FCURVE")
-            if wm.stiffnessCurveToggle:
-                box_box_row = box_box.row()
-                box_box_row.prop(wm, "stiffnessCurve", text = "")
-                if not all(np.array(wm.stiffnessCurve) == np.array(obj["stiffnessCurve"])):
-                    wm.stiffnessCurve = obj["stiffnessCurve"]
-                col = box_box.column()
-                col.enabled = False
-                col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["stiffnessCurve"], "mapping")
-            
-            box_row = box.row()
-            split = box_row.split(factor = 0.85, align = True)
-            split.prop(wm, "stiffnessStrength", text="Strength")
-            if wm.stiffnessStrength != obj["stiffnessStrength"]:
-                wm.stiffnessStrength = obj["stiffnessStrength"]
-            split.prop(wm, "stiffnessStrengthCurveToggle", text = "", toggle = True, icon = "FCURVE")
-            if wm.stiffnessStrengthCurveToggle:
+            header, panel = layout.panel("hair_stiffness_panel", default_closed=False)
+            header.label(text="Stiffness")
+            if panel:
+                row = panel.row()
+                box = row.box()
+                box.label(text="Global")
                 box_row = box.row()
-                box_row.prop(wm, "stiffnessStrengthCurve", text = "")
-                if not all(np.array(wm.stiffnessStrengthCurve) == np.array(obj["stiffnessStrengthCurve"])):
-                    wm.stiffnessStrengthCurve = obj["stiffnessStrengthCurve"]
-                col = box.column()
-                col.enabled = False
-                col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["stiffnessStrengthCurve"], "mapping")
+                #box_row.template_ID(wm, "stiffnessTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "stiffnessTexture", text="", icon='TEXTURE')
+                if wm.stiffnessTexture != obj["stiffnessTexture"]:
+                    wm.stiffnessTexture = obj["stiffnessTexture"]
+                split.prop(wm, "stiffnessTextureChan", text = "")
+                if wm.stiffnessTextureChan != obj["stiffnessTextureChan"]:
+                    wm.stiffnessTextureChan = obj["stiffnessTextureChan"]
+                box_row = box.row()
+                split = box_row.split(factor = 0.85, align = True)
+                split.prop(wm, "stiffness", text="")
+                if wm.stiffness != obj["stiffness"]:
+                    wm.stiffness = obj["stiffness"]
+                split.prop(wm, "stiffnessCurveToggle", text = "", toggle = True, icon = "FCURVE")
+                if wm.stiffnessCurveToggle:
+                    box_row = box.row()
+                    box_row.prop(wm, "stiffnessCurve", text = "")
+                    if not all(np.array(wm.stiffnessCurve) == np.array(obj["stiffnessCurve"])):
+                        wm.stiffnessCurve = obj["stiffnessCurve"]
+                    col = box.column()
+                    col.enabled = False
+                    col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["stiffnessCurve"], "mapping")
+                    
+                row = panel.row()
+                box = row.box()
+                box.label(text="Root")
+                box_row = box.row()
+                #box_row.template_ID(wm, "rootStiffnessTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "rootStiffnessTexture", text="", icon='TEXTURE')
+                if wm.rootStiffnessTexture != obj["rootStiffnessTexture"]:
+                    wm.rootStiffnessTexture = obj["rootStiffnessTexture"]
+                split.prop(wm, "rootStiffnessTextureChan", text="")
+                if wm.rootStiffnessTextureChan != obj["rootStiffnessTextureChan"]:
+                    wm.rootStiffnessTextureChan = obj["rootStiffnessTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "rootStiffness", text="")
+                if wm.rootStiffness != obj["rootStiffness"]:
+                    wm.rootStiffness = obj["rootStiffness"]
                 
-            box_row = box.row()
-            split = box_row.split(factor = 0.85, align = True)
-            split.prop(wm, "stiffnessDamping", text="Damping")
-            if wm.stiffnessDamping != obj["stiffnessDamping"]:
-                wm.stiffnessDamping = obj["stiffnessDamping"]
-            split.prop(wm, "stiffnessDampingCurveToggle", text = "", toggle = True, icon = "FCURVE")
-            if wm.stiffnessDampingCurveToggle:
-                box_row = box.row()
-                box_row.prop(wm, "stiffnessDampingCurve", text = "")
-                if not all(np.array(wm.stiffnessDampingCurve) == np.array(obj["stiffnessDampingCurve"])):
-                    wm.stiffnessDampingCurve = obj["stiffnessDampingCurve"]
-                col = box.column()
-                col.enabled = False
-                col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["stiffnessDampingCurve"], "mapping")
+                row = panel.row()
+                row.prop(wm, "tipStiffness", text="Tip")
+                if wm.tipStiffness != obj["tipStiffness"]:
+                    wm.tipStiffness = obj["tipStiffness"]
+                    
+                row = panel.row()
+                split = row.split(factor = 0.85, align = True)
+                split.prop(wm, "stiffnessStrength", text="Strength")
+                if wm.stiffnessStrength != obj["stiffnessStrength"]:
+                    wm.stiffnessStrength = obj["stiffnessStrength"]
+                split.prop(wm, "stiffnessStrengthCurveToggle", text = "", toggle = True, icon = "FCURVE")
+                if wm.stiffnessStrengthCurveToggle:
+                    row = panel.row()
+                    row.prop(wm, "stiffnessStrengthCurve", text = "")
+                    if not all(np.array(wm.stiffnessStrengthCurve) == np.array(obj["stiffnessStrengthCurve"])):
+                        wm.stiffnessStrengthCurve = obj["stiffnessStrengthCurve"]
+                    col = panel.column()
+                    col.enabled = False
+                    col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["stiffnessStrengthCurve"], "mapping")
+                    
+                row = panel.row()
+                split = row.split(factor = 0.85, align = True)
+                split.prop(wm, "stiffnessDamping", text="Damping")
+                if wm.stiffnessDamping != obj["stiffnessDamping"]:
+                    wm.stiffnessDamping = obj["stiffnessDamping"]
+                split.prop(wm, "stiffnessDampingCurveToggle", text = "", toggle = True, icon = "FCURVE")
+                if wm.stiffnessDampingCurveToggle:
+                    row = panel.row()
+                    row.prop(wm, "stiffnessDampingCurve", text = "")
+                    if not all(np.array(wm.stiffnessDampingCurve) == np.array(obj["stiffnessDampingCurve"])):
+                        wm.stiffnessDampingCurve = obj["stiffnessDampingCurve"]
+                    col = panel.column()
+                    col.enabled = False
+                    col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["stiffnessDampingCurve"], "mapping")
                 
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Root")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "rootStiffnessTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "rootStiffnessTexture", text="", icon='TEXTURE')
-            if wm.rootStiffnessTexture != obj["rootStiffnessTexture"]:
-                wm.rootStiffnessTexture = obj["rootStiffnessTexture"]
-            split.prop(wm, "rootStiffnessTextureChan", text="")
-            if wm.rootStiffnessTextureChan != obj["rootStiffnessTextureChan"]:
-                wm.rootStiffnessTextureChan = obj["rootStiffnessTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "rootStiffness", text="")
-            if wm.rootStiffness != obj["rootStiffness"]:
-                wm.rootStiffness = obj["rootStiffness"]
+                row = panel.row()
+                split = row.split(factor = 0.85, align = True)
+                split.prop(wm, "bendStiffness", text="Bend")
+                if wm.bendStiffness != obj["bendStiffness"]:
+                    wm.bendStiffness = obj["bendStiffness"]
+                split.prop(wm, "bendStiffnessCurveToggle", text = "", toggle = True, icon = "FCURVE")
+                if wm.bendStiffnessCurveToggle:
+                    row = panel.row()
+                    row.prop(wm, "bendStiffnessCurve", text = "")
+                    if not all(np.array(wm.bendStiffnessCurve) == np.array(obj["bendStiffnessCurve"])):
+                        wm.bendStiffnessCurve = obj["bendStiffnessCurve"]
+                    col = panel.column()
+                    col.enabled = False
+                    col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["bendStiffnessCurve"], "mapping")
             
-            box_row = box.row()
-            box_row.prop(wm, "tipStiffness", text="Tip")
-            if wm.tipStiffness != obj["tipStiffness"]:
-                wm.tipStiffness = obj["tipStiffness"]
+            layout.separator()
+            header, panel = layout.panel("hair_collision_panel", default_closed=False)
+            header.label(text="Collision")
+            if panel:   
+                row = panel.row()
+                row.prop(wm, "backStopRadius", text="Backstop")
+                if wm.backStopRadius != obj["backStopRadius"]:
+                    wm.backStopRadius = obj["backStopRadius"]
+                row = panel.row()
+                row.prop(wm, "friction", text="Friction")
+                if wm.friction != obj["friction"]:
+                    wm.friction = obj["friction"]
+                row = panel.row()
+                row.prop(wm, "useCollision", text="Use Collision")
+                if wm.useCollision != obj["useCollision"]:
+                    wm.useCollision = obj["useCollision"]
+                row = panel.row()
+                row.prop(wm, "collisionOffset", text="Collision Offset")
+                if wm.collisionOffset != obj["collisionOffset"]:
+                    wm.collisionOffset = obj["collisionOffset"]
+                row = panel.row()
+                split = row.split(factor = 0.85, align = True)
+                split.prop(wm, "interactionStiffness", text="Hair Interaction")
+                if wm.interactionStiffness != obj["interactionStiffness"]:
+                    wm.interactionStiffness = obj["interactionStiffness"]
+                split.prop(wm, "interactionStiffnessCurveToggle", text = "", toggle = True, icon = "FCURVE")
+                if wm.interactionStiffnessCurveToggle:
+                    row = panel.row()
+                    row.prop(wm, "interactionStiffnessCurve", text = "")
+                    if not all(np.array(wm.interactionStiffnessCurve) == np.array(obj["interactionStiffnessCurve"])):
+                        wm.interactionStiffnessCurve = obj["interactionStiffnessCurve"]
+                    col = panel.column()
+                    col.enabled = False
+                    col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["interactionStiffnessCurve"], "mapping")
             
-            box_row = box.row()
-            split = box_row.split(factor = 0.85, align = True)
-            split.prop(wm, "bendStiffness", text="Bend")
-            if wm.bendStiffness != obj["bendStiffness"]:
-                wm.bendStiffness = obj["bendStiffness"]
-            split.prop(wm, "bendStiffnessCurveToggle", text = "", toggle = True, icon = "FCURVE")
-            if wm.bendStiffnessCurveToggle:
+            layout.separator()
+            header, panel = layout.panel("hair_pins_panel", default_closed=False)
+            header.label(text="Hair Pins")
+            if panel:  
+                row = panel.row()
+                row.prop(wm, "pinStiffness", text="Stiffness")
+                if wm.pinStiffness != obj["pinStiffness"]:
+                    wm.pinStiffness = obj["pinStiffness"]
+                row = panel.row()
+                row.prop(wm, "useDynamicPin", text="Use Dynamic Hair Pins")
+                if wm.useDynamicPin != obj["useDynamicPin"]:
+                    wm.useDynamicPin = obj["useDynamicPin"]
+            
+            layout.separator()
+            header, panel = layout.panel("hair_volume_panel", default_closed=False)
+            header.label(text="Volume")
+            if panel:  
+                row = panel.row()
+                box = row.box()
+                box.label(text="Density")
                 box_row = box.row()
-                box_row.prop(wm, "bendStiffnessCurve", text = "")
-                if not all(np.array(wm.bendStiffnessCurve) == np.array(obj["bendStiffnessCurve"])):
-                    wm.bendStiffnessCurve = obj["bendStiffnessCurve"]
-                col = box.column()
-                col.enabled = False
-                col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["bendStiffnessCurve"], "mapping")
-            
-            layout.separator()    
-            row = layout.row()
-            box = row.box()
-            box.label(text="Collision")
-            box_row = box.row()
-            box_row.prop(wm, "backStopRadius", text="Backstop")
-            if wm.backStopRadius != obj["backStopRadius"]:
-                wm.backStopRadius = obj["backStopRadius"]
-            box_row = box.row()
-            box_row.prop(wm, "friction", text="Friction")
-            if wm.friction != obj["friction"]:
-                wm.friction = obj["friction"]
-            box_row = box.row()
-            box_row.prop(wm, "useCollision", text="Use Collision")
-            if wm.useCollision != obj["useCollision"]:
-                wm.useCollision = obj["useCollision"]
-            box_row = box.row()
-            box_row.prop(wm, "collisionOffset", text="Collision Offset")
-            if wm.collisionOffset != obj["collisionOffset"]:
-                wm.collisionOffset = obj["collisionOffset"]
-            box_row = box.row()
-            split = box_row.split(factor = 0.85, align = True)
-            split.prop(wm, "interactionStiffness", text="Hair Interaction")
-            if wm.interactionStiffness != obj["interactionStiffness"]:
-                wm.interactionStiffness = obj["interactionStiffness"]
-            split.prop(wm, "interactionStiffnessCurveToggle", text = "", toggle = True, icon = "FCURVE")
-            if wm.interactionStiffnessCurveToggle:
+                #box_row.template_ID(wm, "densityTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "densityTexture", text="", icon='TEXTURE')
+                if wm.densityTexture != obj["densityTexture"]:
+                    wm.densityTexture = obj["densityTexture"]
+                split.prop(wm, "densityTextureChan", text="")
+                if wm.densityTextureChan != obj["densityTextureChan"]:
+                    wm.densityTextureChan = obj["densityTextureChan"]
                 box_row = box.row()
-                box_row.prop(wm, "interactionStiffnessCurve", text = "")
-                if not all(np.array(wm.interactionStiffnessCurve) == np.array(obj["interactionStiffnessCurve"])):
-                    wm.interactionStiffnessCurve = obj["interactionStiffnessCurve"]
-                col = box.column()
-                col.enabled = False
-                col.template_curve_mapping(obj.modifiers["SimulationCurves"].node_group.nodes["interactionStiffnessCurve"], "mapping")
-            
-            layout.separator()    
-            row = layout.row()
-            box = row.box()
-            box.label(text="Hair Pins")
-            box_row = box.row()
-            box_row.prop(wm, "pinStiffness", text="Stiffness")
-            if wm.pinStiffness != obj["pinStiffness"]:
-                wm.pinStiffness = obj["pinStiffness"]
-            box_row = box.row()
-            box_row.prop(wm, "useDynamicPin", text="Use Dynamic Hair Pins")
-            if wm.useDynamicPin != obj["useDynamicPin"]:
-                wm.useDynamicPin = obj["useDynamicPin"]
-            
-            layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Volume")
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Density")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "densityTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "densityTexture", text="", icon='TEXTURE')
-            if wm.densityTexture != obj["densityTexture"]:
-                wm.densityTexture = obj["densityTexture"]
-            split.prop(wm, "densityTextureChan", text="")
-            if wm.densityTextureChan != obj["densityTextureChan"]:
-                wm.densityTextureChan = obj["densityTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "density", text="Scale")
-            if wm.density != obj["density"]:
-                wm.density = obj["density"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "usePixelDensity", text="Use Pixel Density")
-            if wm.usePixelDensity != obj["usePixelDensity"]:
-                wm.usePixelDensity = obj["usePixelDensity"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Length")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "lengthTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "lengthTexture", text="", icon='TEXTURE')
-            if wm.lengthTexture != obj["lengthTexture"]:
-                wm.lengthTexture = obj["lengthTexture"]
-            split.prop(wm, "lengthTextureChan", text="")
-            if wm.lengthTextureChan != obj["lengthTextureChan"]:
-                wm.lengthTextureChan = obj["lengthTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "lengthScale", text="Scale")
-            if wm.lengthScale != obj["lengthScale"]:
-                wm.lengthScale = obj["lengthScale"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "lengthNoise", text="Noise")
-            if wm.lengthNoise != obj["lengthNoise"]:
-                wm.lengthNoise = obj["lengthNoise"]
+                box_row.prop(wm, "density", text="Scale")
+                if wm.density != obj["density"]:
+                    wm.density = obj["density"]
+                box_row = box.row()
+                box_row.prop(wm, "usePixelDensity", text="Use Pixel Density")
+                if wm.usePixelDensity != obj["usePixelDensity"]:
+                    wm.usePixelDensity = obj["usePixelDensity"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Length")
+                box_row = box.row()
+                #box_row.template_ID(wm, "lengthTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "lengthTexture", text="", icon='TEXTURE')
+                if wm.lengthTexture != obj["lengthTexture"]:
+                    wm.lengthTexture = obj["lengthTexture"]
+                split.prop(wm, "lengthTextureChan", text="")
+                if wm.lengthTextureChan != obj["lengthTextureChan"]:
+                    wm.lengthTextureChan = obj["lengthTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "lengthScale", text="Scale")
+                if wm.lengthScale != obj["lengthScale"]:
+                    wm.lengthScale = obj["lengthScale"]
+                box_row = box.row()
+                box_row.prop(wm, "lengthNoise", text="Noise")
+                if wm.lengthNoise != obj["lengthNoise"]:
+                    wm.lengthNoise = obj["lengthNoise"]
             
             layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Strand Width")
+            header, panel = layout.panel("hair_width_panel", default_closed=False)
+            header.label(text="Strand Width")
+            if panel: 
+                row = panel.row()
+                box = row.box()
+                box.label(text="Base")
+                box_row = box.row()
+                #box_row.template_ID(wm, "widthTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "widthTexture", text="", icon='TEXTURE')
+                if wm.widthTexture != obj["widthTexture"]:
+                    wm.widthTexture = obj["widthTexture"]
+                split.prop(wm, "widthTextureChan", text="")
+                if wm.widthTextureChan != obj["widthTextureChan"]:
+                    wm.widthTextureChan = obj["widthTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "width", text="Scale")
+                if wm.width != obj["width"]:
+                    wm.width = obj["width"]
+                box_row = box.row()
+                box_row.prop(wm, "widthNoise", text="Noise")
+                if wm.widthNoise != obj["widthNoise"]:
+                    wm.widthNoise = obj["widthNoise"]
             
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Base Width")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "widthTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "widthTexture", text="", icon='TEXTURE')
-            if wm.widthTexture != obj["widthTexture"]:
-                wm.widthTexture = obj["widthTexture"]
-            split.prop(wm, "widthTextureChan", text="")
-            if wm.widthTextureChan != obj["widthTextureChan"]:
-                wm.widthTextureChan = obj["widthTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "width", text="Scale")
-            if wm.width != obj["width"]:
-                wm.width = obj["width"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "widthNoise", text="Noise")
-            if wm.widthNoise != obj["widthNoise"]:
-                wm.widthNoise = obj["widthNoise"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Root")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "rootWidthTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "rootWidthTexture", text="", icon='TEXTURE')
-            if wm.rootWidthTexture != obj["rootWidthTexture"]:
-                wm.rootWidthTexture = obj["rootWidthTexture"]
-            split.prop(wm, "rootWidthTextureChan", text="")
-            if wm.rootWidthTextureChan != obj["rootWidthTextureChan"]:
-                wm.rootWidthTextureChan = obj["rootWidthTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "widthRootScale", text="Scale")
-            if wm.widthRootScale != obj["widthRootScale"]:
-                wm.widthRootScale = obj["widthRootScale"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Tip")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "tipWidthTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "tipWidthTexture", text="", icon='TEXTURE')
-            if wm.tipWidthTexture != obj["tipWidthTexture"]:
-                wm.tipWidthTexture = obj["tipWidthTexture"]
-            split.prop(wm, "tipWidthTextureChan", text="")
-            if wm.tipWidthTextureChan != obj["tipWidthTextureChan"]:
-                wm.tipWidthTextureChan = obj["tipWidthTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "widthTipScale", text="Scale")
-            if wm.widthTipScale != obj["widthTipScale"]:
-                wm.widthTipScale = obj["widthTipScale"]
-            
-            layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Clumping")
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Scale")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "clumpScaleTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "clumpScaleTexture", text="", icon='TEXTURE')
-            if wm.clumpScaleTexture != obj["clumpScaleTexture"]:
-                wm.clumpScaleTexture = obj["clumpScaleTexture"]
-            split.prop(wm, "clumpScaleTextureChan", text="")
-            if wm.clumpScaleTextureChan != obj["clumpScaleTextureChan"]:
-                wm.clumpScaleTextureChan = obj["clumpScaleTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "clumpScale", text="")
-            if wm.clumpScale != obj["clumpScale"]:
-                wm.clumpScale = obj["clumpScale"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "clumpNumSubclumps", text="Number Subclumps")
-            if wm.clumpNumSubclumps != obj["clumpNumSubclumps"]:
-                wm.clumpNumSubclumps = obj["clumpNumSubclumps"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "clumpPerVertex", text="Per Vertex")
-            if wm.clumpPerVertex != obj["clumpPerVertex"]:
-                wm.clumpPerVertex = obj["clumpPerVertex"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Roundness")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "clumpRoundnessTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "clumpRoundnessTexture", text="", icon='TEXTURE')
-            if wm.clumpRoundnessTexture != obj["clumpRoundnessTexture"]:
-                wm.clumpRoundnessTexture = obj["clumpRoundnessTexture"]
-            split.prop(wm, "clumpRoundnessTextureChan", text="")
-            if wm.clumpRoundnessTextureChan != obj["clumpRoundnessTextureChan"]:
-                wm.clumpRoundnessTextureChan = obj["clumpRoundnessTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "clumpRoundness", text="")
-            if wm.clumpRoundness != obj["clumpRoundness"]:
-                wm.clumpRoundness = obj["clumpRoundness"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Noise")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "clumpNoiseTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "clumpNoiseTexture", text="", icon='TEXTURE')
-            if wm.clumpNoiseTexture != obj["clumpNoiseTexture"]:
-                wm.clumpNoiseTexture = obj["clumpNoiseTexture"]
-            split.prop(wm, "clumpNoiseTextureChan", text="")
-            if wm.clumpNoiseTextureChan != obj["clumpNoiseTextureChan"]:
-                wm.clumpNoiseTextureChan = obj["clumpNoiseTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "clumpNoise", text="")
-            if wm.clumpNoise != obj["clumpNoise"]:
-                wm.clumpNoise = obj["clumpNoise"]
+                row = panel.row()
+                box = row.box()
+                box.label(text="Root")
+                box_row = box.row()
+                #box_row.template_ID(wm, "rootWidthTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "rootWidthTexture", text="", icon='TEXTURE')
+                if wm.rootWidthTexture != obj["rootWidthTexture"]:
+                    wm.rootWidthTexture = obj["rootWidthTexture"]
+                split.prop(wm, "rootWidthTextureChan", text="")
+                if wm.rootWidthTextureChan != obj["rootWidthTextureChan"]:
+                    wm.rootWidthTextureChan = obj["rootWidthTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "widthRootScale", text="Scale")
+                if wm.widthRootScale != obj["widthRootScale"]:
+                    wm.widthRootScale = obj["widthRootScale"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Tip")
+                box_row = box.row()
+                #box_row.template_ID(wm, "tipWidthTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "tipWidthTexture", text="", icon='TEXTURE')
+                if wm.tipWidthTexture != obj["tipWidthTexture"]:
+                    wm.tipWidthTexture = obj["tipWidthTexture"]
+                split.prop(wm, "tipWidthTextureChan", text="")
+                if wm.tipWidthTextureChan != obj["tipWidthTextureChan"]:
+                    wm.tipWidthTextureChan = obj["tipWidthTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "widthTipScale", text="Scale")
+                if wm.widthTipScale != obj["widthTipScale"]:
+                    wm.widthTipScale = obj["widthTipScale"]
             
             layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Waviness")
+            header, panel = layout.panel("hair_clumping_panel", default_closed=False)
+            header.label(text="Clumping")
+            if panel: 
+                row = panel.row()
+                box = row.box()
+                box.label(text="Scale")
+                box_row = box.row()
+                #box_row.template_ID(wm, "clumpScaleTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "clumpScaleTexture", text="", icon='TEXTURE')
+                if wm.clumpScaleTexture != obj["clumpScaleTexture"]:
+                    wm.clumpScaleTexture = obj["clumpScaleTexture"]
+                split.prop(wm, "clumpScaleTextureChan", text="")
+                if wm.clumpScaleTextureChan != obj["clumpScaleTextureChan"]:
+                    wm.clumpScaleTextureChan = obj["clumpScaleTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "clumpScale", text="")
+                if wm.clumpScale != obj["clumpScale"]:
+                    wm.clumpScale = obj["clumpScale"]
+                box_row = box.row()
+                box_row.prop(wm, "clumpNumSubclumps", text="Number Subclumps")
+                if wm.clumpNumSubclumps != obj["clumpNumSubclumps"]:
+                    wm.clumpNumSubclumps = obj["clumpNumSubclumps"]
+                box_row = box.row()
+                box_row.prop(wm, "clumpPerVertex", text="Per Vertex")
+                if wm.clumpPerVertex != obj["clumpPerVertex"]:
+                    wm.clumpPerVertex = obj["clumpPerVertex"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Roundness")
+                box_row = box.row()
+                #box_row.template_ID(wm, "clumpRoundnessTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "clumpRoundnessTexture", text="", icon='TEXTURE')
+                if wm.clumpRoundnessTexture != obj["clumpRoundnessTexture"]:
+                    wm.clumpRoundnessTexture = obj["clumpRoundnessTexture"]
+                split.prop(wm, "clumpRoundnessTextureChan", text="")
+                if wm.clumpRoundnessTextureChan != obj["clumpRoundnessTextureChan"]:
+                    wm.clumpRoundnessTextureChan = obj["clumpRoundnessTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "clumpRoundness", text="")
+                if wm.clumpRoundness != obj["clumpRoundness"]:
+                    wm.clumpRoundness = obj["clumpRoundness"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Noise")
+                box_row = box.row()
+                #box_row.template_ID(wm, "clumpNoiseTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "clumpNoiseTexture", text="", icon='TEXTURE')
+                if wm.clumpNoiseTexture != obj["clumpNoiseTexture"]:
+                    wm.clumpNoiseTexture = obj["clumpNoiseTexture"]
+                split.prop(wm, "clumpNoiseTextureChan", text="")
+                if wm.clumpNoiseTextureChan != obj["clumpNoiseTextureChan"]:
+                    wm.clumpNoiseTextureChan = obj["clumpNoiseTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "clumpNoise", text="")
+                if wm.clumpNoise != obj["clumpNoise"]:
+                    wm.clumpNoise = obj["clumpNoise"]
             
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Scale")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "waveScaletexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "waveScaletexture", text="", icon='TEXTURE')
-            if wm.waveScaletexture != obj["waveScaletexture"]:
-                wm.waveScaletexture = obj["waveScaletexture"]
-            split.prop(wm, "waveScaleTextureChan", text="")
-            if wm.waveScaleTextureChan != obj["waveScaleTextureChan"]:
-                wm.waveScaleTextureChan = obj["waveScaleTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "waveScale", text="")
-            if wm.waveScale != obj["waveScale"]:
-                wm.waveScale = obj["waveScale"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "waveScaleNoise", text="Noise")
-            if wm.waveScaleNoise != obj["waveScaleNoise"]:
-                wm.waveScaleNoise = obj["waveScaleNoise"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "waveScaleStrand", text="Strand")
-            if wm.waveScaleStrand != obj["waveScaleStrand"]:
-                wm.waveScaleStrand = obj["waveScaleStrand"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "waveScaleClump", text="Clump")
-            if wm.waveScaleClump != obj["waveScaleClump"]:
-                wm.waveScaleClump = obj["waveScaleClump"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Frequency")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "waveFreqTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.82, align = True)
-            split.prop(wm, "waveFreqTexture", text="", icon='TEXTURE')
-            if wm.waveFreqTexture != obj["waveFreqTexture"]:
-                wm.waveFreqTexture = obj["waveFreqTexture"]
-            split.prop(wm, "waveFreqTextureChan", text="")
-            if wm.waveFreqTextureChan != obj["waveFreqTextureChan"]:
-                wm.waveFreqTextureChan = obj["waveFreqTextureChan"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "waveFreq", text="")
-            if wm.waveFreq != obj["waveFreq"]:
-                wm.waveFreq = obj["waveFreq"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "waveFreqNoise", text="Noise")
-            if wm.waveFreqNoise != obj["waveFreqNoise"]:
-                wm.waveFreqNoise = obj["waveFreqNoise"]
-            
-            box_row = box.row()
-            box_row.prop(wm, "waveRootStraighten", text="Root Straighten")
-            if wm.waveRootStraighten != obj["waveRootStraighten"]:
-                wm.waveRootStraighten = obj["waveRootStraighten"]
+            layout.separator()
+            header, panel = layout.panel("hair_waviness_panel", default_closed=False)
+            header.label(text="Waviness")
+            if panel: 
+                row = panel.row()
+                box = row.box()
+                box.label(text="Scale")
+                box_row = box.row()
+                #box_row.template_ID(wm, "waveScaletexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "waveScaletexture", text="", icon='TEXTURE')
+                if wm.waveScaletexture != obj["waveScaletexture"]:
+                    wm.waveScaletexture = obj["waveScaletexture"]
+                split.prop(wm, "waveScaleTextureChan", text="")
+                if wm.waveScaleTextureChan != obj["waveScaleTextureChan"]:
+                    wm.waveScaleTextureChan = obj["waveScaleTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "waveScale", text="")
+                if wm.waveScale != obj["waveScale"]:
+                    wm.waveScale = obj["waveScale"]
+                box_row = box.row()
+                box_row.prop(wm, "waveScaleNoise", text="Noise")
+                if wm.waveScaleNoise != obj["waveScaleNoise"]:
+                    wm.waveScaleNoise = obj["waveScaleNoise"]
+                box_row = box.row()
+                box_row.prop(wm, "waveScaleStrand", text="Strand")
+                if wm.waveScaleStrand != obj["waveScaleStrand"]:
+                    wm.waveScaleStrand = obj["waveScaleStrand"]
+                box_row = box.row()
+                box_row.prop(wm, "waveScaleClump", text="Clump")
+                if wm.waveScaleClump != obj["waveScaleClump"]:
+                    wm.waveScaleClump = obj["waveScaleClump"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Frequency")
+                box_row = box.row()
+                #box_row.template_ID(wm, "waveFreqTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.82, align = True)
+                split.prop(wm, "waveFreqTexture", text="", icon='TEXTURE')
+                if wm.waveFreqTexture != obj["waveFreqTexture"]:
+                    wm.waveFreqTexture = obj["waveFreqTexture"]
+                split.prop(wm, "waveFreqTextureChan", text="")
+                if wm.waveFreqTextureChan != obj["waveFreqTextureChan"]:
+                    wm.waveFreqTextureChan = obj["waveFreqTextureChan"]
+                box_row = box.row()
+                box_row.prop(wm, "waveFreq", text="")
+                if wm.waveFreq != obj["waveFreq"]:
+                    wm.waveFreq = obj["waveFreq"]
+                box_row = box.row()
+                box_row.prop(wm, "waveFreqNoise", text="Noise")
+                if wm.waveFreqNoise != obj["waveFreqNoise"]:
+                    wm.waveFreqNoise = obj["waveFreqNoise"]
+                
+                row = panel.row()
+                row.prop(wm, "waveRootStraighten", text="Root Straighten")
+                if wm.waveRootStraighten != obj["waveRootStraighten"]:
+                    wm.waveRootStraighten = obj["waveRootStraighten"]
                     
         return
     
@@ -618,235 +613,234 @@ class PhysXHairGraphicsPanel(bpy.types.Panel):
             arma = GetArmature()
             obj = arma.children[0]
             
-            row = layout.row()
-            box = row.box()
-            box.label(text="Color")
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Base")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "baseColor", text="")
-            if not all(np.array(wm.baseColor) == np.array(obj["baseColor"])):
-                wm.baseColor = obj["baseColor"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "alpha", text="Alpha")
-            if wm.alpha != obj["alpha"]:
-                wm.alpha = obj["alpha"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Root")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "rootColorTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.8)
-            split.prop(wm, "rootColorTexture", text="", icon='TEXTURE')
-            if wm.rootColorTexture != obj["rootColorTexture"]:
-                wm.rootColorTexture = obj["rootColorTexture"]
-            split.prop(wm, "rootColor", text="")
-            if not all(np.array(wm.rootColor) == np.array(obj["rootColor"])):
-                wm.rootColor = obj["rootColor"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "rootAlphaFalloff", text="Alpha Falloff")
-            if wm.rootAlphaFalloff != obj["rootAlphaFalloff"]:
-                wm.rootAlphaFalloff = obj["rootAlphaFalloff"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Tip")
-            box_box_row = box_box.row()
-            #box_box_row.template_ID(wm, "tipColorTexture", new="image.new", open="image.open")
-            split = box_box_row.split(factor = 0.8)
-            split.prop(wm, "tipColorTexture", text="", icon='TEXTURE')
-            if wm.tipColorTexture != obj["tipColorTexture"]:
-                wm.tipColorTexture = obj["tipColorTexture"]
-            split.prop(wm, "tipColor", text="")
-            if not all(np.array(wm.tipColor) == np.array(obj["tipColor"])):
-                wm.tipColor = obj["tipColor"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Root/Tip")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "rootTipColorWeight", text="Weight")
-            if wm.rootTipColorWeight != obj["rootTipColorWeight"]:
-                wm.rootTipColorWeight = obj["rootTipColorWeight"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "rootTipColorFalloff", text="Falloff")
-            if wm.rootTipColorFalloff != obj["rootTipColorFalloff"]:
-                wm.rootTipColorFalloff = obj["rootTipColorFalloff"]
-            
-            layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Strand")
-            box_row = box.row()
-            #box_row.template_ID(wm, "strandTexture", new="image.new", open="image.open")
-            box_row.prop(wm, "strandTexture", text="", icon='TEXTURE')
-            if wm.strandTexture != obj["strandTexture"]:
-                wm.strandTexture = obj["strandTexture"]
-            box_row = box.row()
-            box_row.prop(wm, "strandBlendMode", text="Blend Mode")
-            if wm.strandBlendMode != obj["strandBlendMode"]:
-                wm.strandBlendMode = obj["strandBlendMode"]
-            box_row = box.row()
-            box_row.prop(wm, "strandBlendScale", text="Blend Scale")
-            if wm.strandBlendScale != obj["strandBlendScale"]:
-                wm.strandBlendScale = obj["strandBlendScale"]
-            box_row = box.row()
-            box_row.prop(wm, "textureBrightness", text="Brightness")
-            if wm.textureBrightness != obj["textureBrightness"]:
-                wm.textureBrightness = obj["textureBrightness"]
+            header, panel = layout.panel("hair_color_panel", default_closed=False)
+            header.label(text="Color")
+            if panel:
+                row = panel.row()
+                box = row.box()
+                box.label(text="Base")
+                box_row = box.row()
+                box_row.prop(wm, "baseColor", text="")
+                if not all(np.array(wm.baseColor) == np.array(obj["baseColor"])):
+                    wm.baseColor = obj["baseColor"]
+                box_row = box.row()
+                box_row.prop(wm, "alpha", text="Alpha")
+                if wm.alpha != obj["alpha"]:
+                    wm.alpha = obj["alpha"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Root")
+                box_row = box.row()
+                #box_row.template_ID(wm, "rootColorTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.8)
+                split.prop(wm, "rootColorTexture", text="", icon='TEXTURE')
+                if wm.rootColorTexture != obj["rootColorTexture"]:
+                    wm.rootColorTexture = obj["rootColorTexture"]
+                split.prop(wm, "rootColor", text="")
+                if not all(np.array(wm.rootColor) == np.array(obj["rootColor"])):
+                    wm.rootColor = obj["rootColor"]
+                box_row = box.row()
+                box_row.prop(wm, "rootAlphaFalloff", text="Alpha Falloff")
+                if wm.rootAlphaFalloff != obj["rootAlphaFalloff"]:
+                    wm.rootAlphaFalloff = obj["rootAlphaFalloff"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Tip")
+                box_row = box.row()
+                #box_row.template_ID(wm, "tipColorTexture", new="image.new", open="image.open")
+                split = box_row.split(factor = 0.8)
+                split.prop(wm, "tipColorTexture", text="", icon='TEXTURE')
+                if wm.tipColorTexture != obj["tipColorTexture"]:
+                    wm.tipColorTexture = obj["tipColorTexture"]
+                split.prop(wm, "tipColor", text="")
+                if not all(np.array(wm.tipColor) == np.array(obj["tipColor"])):
+                    wm.tipColor = obj["tipColor"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Root/Tip")
+                box_row = box.row()
+                box_row.prop(wm, "rootTipColorWeight", text="Weight")
+                if wm.rootTipColorWeight != obj["rootTipColorWeight"]:
+                    wm.rootTipColorWeight = obj["rootTipColorWeight"]
+                box_row = box.row()
+                box_row.prop(wm, "rootTipColorFalloff", text="Falloff")
+                if wm.rootTipColorFalloff != obj["rootTipColorFalloff"]:
+                    wm.rootTipColorFalloff = obj["rootTipColorFalloff"]
             
             layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Diffuse")
-            box_row = box.row()
-            box_row.prop(wm, "diffuseColor", text="")
-            if not all(np.array(wm.diffuseColor) == np.array(obj["diffuseColor"])):
-                wm.diffuseColor = obj["diffuseColor"]
-            box_row = box.row()
-            box_row.prop(wm, "diffuseBlend", text="Blend")
-            if wm.diffuseBlend != obj["diffuseBlend"]:
-                wm.diffuseBlend = obj["diffuseBlend"]
-            box_row = box.row()
-            box_row.prop(wm, "diffuseScale", text="Scale")
-            if wm.diffuseScale != obj["diffuseScale"]:
-                wm.diffuseScale = obj["diffuseScale"]
-            box_row = box.row()
-            box_row.prop(wm, "diffuseHairNormalWeight", text="Hair Normal Weight")
-            if wm.diffuseHairNormalWeight != obj["diffuseHairNormalWeight"]:
-                wm.diffuseHairNormalWeight = obj["diffuseHairNormalWeight"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Bone")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "diffuseBoneIndex", text="Index")
-            if wm.diffuseBoneIndex != obj["diffuseBoneIndex"]:
-                wm.diffuseBoneIndex = obj["diffuseBoneIndex"]
-            box_box_row = box_box.row()
-            col = box_box_row.column()
-            col.prop(wm, "diffuseBoneLocalPos", text="Local Position")
-            if not all(np.array(wm.diffuseBoneLocalPos) == np.array(obj["diffuseBoneLocalPos"])):
-                wm.diffuseBoneLocalPos = obj["diffuseBoneLocalPos"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Noise")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "diffuseNoiseScale", text="Scale")
-            if wm.diffuseNoiseScale != obj["diffuseNoiseScale"]:
-                wm.diffuseNoiseScale = obj["diffuseNoiseScale"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "diffuseNoiseGain", text="Gain")
-            if wm.diffuseNoiseGain != obj["diffuseNoiseGain"]:
-                wm.diffuseNoiseGain = obj["diffuseNoiseGain"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "diffuseNoiseFreqU", text="Freq U")
-            if wm.diffuseNoiseFreqU != obj["diffuseNoiseFreqU"]:
-                wm.diffuseNoiseFreqU = obj["diffuseNoiseFreqU"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "diffuseNoiseFreqV", text="Freq V")
-            if wm.diffuseNoiseFreqV != obj["diffuseNoiseFreqV"]:
-                wm.diffuseNoiseFreqV = obj["diffuseNoiseFreqV"]
+            header, panel = layout.panel("hair_strand_panel", default_closed=False)
+            header.label(text="Strand")
+            if panel:
+                row = panel.row()
+                #row.template_ID(wm, "strandTexture", new="image.new", open="image.open")
+                row.prop(wm, "strandTexture", text="", icon='TEXTURE')
+                if wm.strandTexture != obj["strandTexture"]:
+                    wm.strandTexture = obj["strandTexture"]
+                row = panel.row()
+                row.prop(wm, "strandBlendMode", text="Blend Mode")
+                if wm.strandBlendMode != obj["strandBlendMode"]:
+                    wm.strandBlendMode = obj["strandBlendMode"]
+                row = panel.row()
+                row.prop(wm, "strandBlendScale", text="Blend Scale")
+                if wm.strandBlendScale != obj["strandBlendScale"]:
+                    wm.strandBlendScale = obj["strandBlendScale"]
+                row = panel.row()
+                row.prop(wm, "textureBrightness", text="Brightness")
+                if wm.textureBrightness != obj["textureBrightness"]:
+                    wm.textureBrightness = obj["textureBrightness"]
             
             layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Specular")
-            box_row = box.row()
-            #box_row.template_ID(wm, "specularTexture", new="image.new", open="image.open")
-            split = box_row.split(factor = 0.8)
-            split.prop(wm, "specularTexture", text="", icon='TEXTURE')
-            if wm.specularTexture != obj["specularTexture"]:
-                wm.specularTexture = obj["specularTexture"]
-            split.prop(wm, "specularColor", text="")
-            if not all(np.array(wm.specularColor) == np.array(obj["specularColor"])):
-                wm.specularColor = obj["specularColor"]
-            box_row = box.row()
-            box_row.prop(wm, "specularNoiseScale", text="Noise Scale")
-            if wm.specularNoiseScale != obj["specularNoiseScale"]:
-                wm.specularNoiseScale = obj["specularNoiseScale"]
-            box_row = box.row()
-            box_row.prop(wm, "specularEnvScale", text="Env Scale")
-            if wm.specularEnvScale != obj["specularEnvScale"]:
-                wm.specularEnvScale = obj["specularEnvScale"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Primary")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "specularPrimary", text="Scale")
-            if wm.specularPrimary != obj["specularPrimary"]:
-                wm.specularPrimary = obj["specularPrimary"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "specularPowerPrimary", text="Shininess")
-            if wm.specularPowerPrimary != obj["specularPowerPrimary"]:
-                wm.specularPowerPrimary = obj["specularPowerPrimary"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "specularPrimaryBreakup", text="Breakup")
-            if wm.specularPrimaryBreakup != obj["specularPrimaryBreakup"]:
-                wm.specularPrimaryBreakup = obj["specularPrimaryBreakup"]
-            
-            box_row = box.row()
-            box_box = box_row.box()
-            box_box.label(text="Secondary")
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "specularSecondary", text="Scale")
-            if wm.specularSecondary != obj["specularSecondary"]:
-                wm.specularSecondary = obj["specularSecondary"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "specularPowerSecondary", text="Shininess")
-            if wm.specularPowerSecondary != obj["specularPowerSecondary"]:
-                wm.specularPowerSecondary = obj["specularPowerSecondary"]
-            box_box_row = box_box.row()
-            box_box_row.prop(wm, "specularSecondaryOffset", text="Power Exponent")
-            if wm.specularSecondaryOffset != obj["specularSecondaryOffset"]:
-                wm.specularSecondaryOffset = obj["specularSecondaryOffset"]
-            
-            layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Glint")
-            box_row = box.row()
-            box_row.prop(wm, "glintStrength", text="Strength")
-            if wm.glintStrength != obj["glintStrength"]:
-                wm.glintStrength = obj["glintStrength"]
-            box_row = box.row()
-            box_row.prop(wm, "glintCount", text="Size")
-            if wm.glintCount != obj["glintCount"]:
-                wm.glintCount = obj["glintCount"]
-            box_row = box.row()
-            box_row.prop(wm, "glintExponent", text="Env Scale")
-            if wm.glintExponent != obj["glintExponent"]:
-                wm.glintExponent = obj["glintExponent"]
+            header, panel = layout.panel("hair_diffuse_panel", default_closed=False)
+            header.label(text="Diffuse")
+            if panel:
+                row = panel.row()
+                row.prop(wm, "diffuseColor", text="")
+                if not all(np.array(wm.diffuseColor) == np.array(obj["diffuseColor"])):
+                    wm.diffuseColor = obj["diffuseColor"]
+                row = panel.row()
+                row.prop(wm, "diffuseBlend", text="Blend")
+                if wm.diffuseBlend != obj["diffuseBlend"]:
+                    wm.diffuseBlend = obj["diffuseBlend"]
+                row = panel.row()
+                row.prop(wm, "diffuseScale", text="Scale")
+                if wm.diffuseScale != obj["diffuseScale"]:
+                    wm.diffuseScale = obj["diffuseScale"]
+                row = panel.row()
+                row.prop(wm, "diffuseHairNormalWeight", text="Hair Normal Weight")
+                if wm.diffuseHairNormalWeight != obj["diffuseHairNormalWeight"]:
+                    wm.diffuseHairNormalWeight = obj["diffuseHairNormalWeight"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Bone")
+                box_row = box.row()
+                box_row.prop(wm, "diffuseBoneIndex", text="Index")
+                if wm.diffuseBoneIndex != obj["diffuseBoneIndex"]:
+                    wm.diffuseBoneIndex = obj["diffuseBoneIndex"]
+                box_row = box.row()
+                col = box_row.column()
+                col.prop(wm, "diffuseBoneLocalPos", text="Local Position")
+                if not all(np.array(wm.diffuseBoneLocalPos) == np.array(obj["diffuseBoneLocalPos"])):
+                    wm.diffuseBoneLocalPos = obj["diffuseBoneLocalPos"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Noise")
+                box_row = box.row()
+                box_row.prop(wm, "diffuseNoiseScale", text="Scale")
+                if wm.diffuseNoiseScale != obj["diffuseNoiseScale"]:
+                    wm.diffuseNoiseScale = obj["diffuseNoiseScale"]
+                box_row = box.row()
+                box_row.prop(wm, "diffuseNoiseGain", text="Gain")
+                if wm.diffuseNoiseGain != obj["diffuseNoiseGain"]:
+                    wm.diffuseNoiseGain = obj["diffuseNoiseGain"]
+                box_row = box.row()
+                box_row.prop(wm, "diffuseNoiseFreqU", text="Freq U")
+                if wm.diffuseNoiseFreqU != obj["diffuseNoiseFreqU"]:
+                    wm.diffuseNoiseFreqU = obj["diffuseNoiseFreqU"]
+                box_row = box.row()
+                box_row.prop(wm, "diffuseNoiseFreqV", text="Freq V")
+                if wm.diffuseNoiseFreqV != obj["diffuseNoiseFreqV"]:
+                    wm.diffuseNoiseFreqV = obj["diffuseNoiseFreqV"]
             
             layout.separator()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Shadows")
-            box_row = box.row()
-            box_row.prop(wm, "useShadows", text="Use Shadows")
-            if wm.useShadows != obj["useShadows"]:
-                wm.useShadows = obj["useShadows"]
-            box_row = box.row()
-            box_row.prop(wm, "castShadows", text="Cast")
-            if wm.castShadows != obj["castShadows"]:
-                wm.castShadows = obj["castShadows"]
-            box_row = box.row()
-            box_row.prop(wm, "receiveShadows", text="Receive")
-            if wm.receiveShadows != obj["receiveShadows"]:
-                wm.receiveShadows = obj["receiveShadows"]
-            box_row = box.row()
-            box_row.prop(wm, "shadowSigma", text="Attenuation")
-            if wm.shadowSigma != obj["shadowSigma"]:
-                wm.shadowSigma = obj["shadowSigma"]
-            box_row = box.row()
-            box_row.prop(wm, "shadowDensityScale", text="Density Scale")
-            if wm.shadowDensityScale != obj["shadowDensityScale"]:
-                wm.shadowDensityScale = obj["shadowDensityScale"]
+            header, panel = layout.panel("hair_specular_panel", default_closed=False)
+            header.label(text="Specular")
+            if panel:
+                row = panel.row()
+                #row.template_ID(wm, "specularTexture", new="image.new", open="image.open")
+                split = row.split(factor = 0.8)
+                split.prop(wm, "specularTexture", text="", icon='TEXTURE')
+                if wm.specularTexture != obj["specularTexture"]:
+                    wm.specularTexture = obj["specularTexture"]
+                split.prop(wm, "specularColor", text="")
+                if not all(np.array(wm.specularColor) == np.array(obj["specularColor"])):
+                    wm.specularColor = obj["specularColor"]
+                row = panel.row()
+                row.prop(wm, "specularNoiseScale", text="Noise Scale")
+                if wm.specularNoiseScale != obj["specularNoiseScale"]:
+                    wm.specularNoiseScale = obj["specularNoiseScale"]
+                row = panel.row()
+                row.prop(wm, "specularEnvScale", text="Env Scale")
+                if wm.specularEnvScale != obj["specularEnvScale"]:
+                    wm.specularEnvScale = obj["specularEnvScale"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Primary")
+                box_row = box.row()
+                box_row.prop(wm, "specularPrimary", text="Scale")
+                if wm.specularPrimary != obj["specularPrimary"]:
+                    wm.specularPrimary = obj["specularPrimary"]
+                box_row = box.row()
+                box_row.prop(wm, "specularPowerPrimary", text="Shininess")
+                if wm.specularPowerPrimary != obj["specularPowerPrimary"]:
+                    wm.specularPowerPrimary = obj["specularPowerPrimary"]
+                box_row = box.row()
+                box_row.prop(wm, "specularPrimaryBreakup", text="Breakup")
+                if wm.specularPrimaryBreakup != obj["specularPrimaryBreakup"]:
+                    wm.specularPrimaryBreakup = obj["specularPrimaryBreakup"]
+                
+                row = panel.row()
+                box = row.box()
+                box.label(text="Secondary")
+                box_row = box.row()
+                box_row.prop(wm, "specularSecondary", text="Scale")
+                if wm.specularSecondary != obj["specularSecondary"]:
+                    wm.specularSecondary = obj["specularSecondary"]
+                box_row = box.row()
+                box_row.prop(wm, "specularPowerSecondary", text="Shininess")
+                if wm.specularPowerSecondary != obj["specularPowerSecondary"]:
+                    wm.specularPowerSecondary = obj["specularPowerSecondary"]
+                box_row = box.row()
+                box_row.prop(wm, "specularSecondaryOffset", text="Power Exponent")
+                if wm.specularSecondaryOffset != obj["specularSecondaryOffset"]:
+                    wm.specularSecondaryOffset = obj["specularSecondaryOffset"]
+            
+            layout.separator()
+            header, panel = layout.panel("hair_glint_panel", default_closed=False)
+            header.label(text="Glint")
+            if panel:
+                row = panel.row()
+                row.prop(wm, "glintStrength", text="Strength")
+                if wm.glintStrength != obj["glintStrength"]:
+                    wm.glintStrength = obj["glintStrength"]
+                row = panel.row()
+                row.prop(wm, "glintCount", text="Size")
+                if wm.glintCount != obj["glintCount"]:
+                    wm.glintCount = obj["glintCount"]
+                row = panel.row()
+                row.prop(wm, "glintExponent", text="Exponent")
+                if wm.glintExponent != obj["glintExponent"]:
+                    wm.glintExponent = obj["glintExponent"]
+            
+            layout.separator()
+            header, panel = layout.panel("hair_shadows_panel", default_closed=False)
+            header.label(text="Shadows")
+            if panel:
+                row = panel.row()
+                row.prop(wm, "useShadows", text="Use Shadows")
+                if wm.useShadows != obj["useShadows"]:
+                    wm.useShadows = obj["useShadows"]
+                row = panel.row()
+                row.prop(wm, "castShadows", text="Cast")
+                if wm.castShadows != obj["castShadows"]:
+                    wm.castShadows = obj["castShadows"]
+                row = panel.row()
+                row.prop(wm, "receiveShadows", text="Receive")
+                if wm.receiveShadows != obj["receiveShadows"]:
+                    wm.receiveShadows = obj["receiveShadows"]
+                row = panel.row()
+                row.prop(wm, "shadowSigma", text="Attenuation")
+                if wm.shadowSigma != obj["shadowSigma"]:
+                    wm.shadowSigma = obj["shadowSigma"]
+                row = panel.row()
+                row.prop(wm, "shadowDensityScale", text="Density Scale")
+                if wm.shadowDensityScale != obj["shadowDensityScale"]:
+                    wm.shadowDensityScale = obj["shadowDensityScale"]
               
         return
     
@@ -1191,7 +1185,7 @@ def updateDensityTextureChan(self, context):
 def updateDensity(self, context):
     obj = GetArmature().children[0]
     obj["density"] = self.density
-    obj.modifiers["Hairworks"].particle_system.settings.child_nbr = round(self.density * 64)
+    obj.modifiers["Hairworks"].particle_system.settings.child_percent = round(self.density * 64)
     obj.modifiers["Hairworks"].particle_system.settings.rendered_child_count = round(self.density * 64)
     
 def updateUsePixelDensity(self, context):

@@ -78,6 +78,8 @@ def setup_hairworks(context, obj):
     SetUpHairworksMaterial(obj, apx_coll, sim)
                    
 def SetUpHairworksMaterial(obj, parent_coll, material):
+    wm = bpy.context.window_manager.physx
+    wm.PhysXSubPanel = 'collision'
     selectOnly(obj)
     if 'Hairworks' not in obj.modifiers:
         mod = obj.modifiers.new(name="Hairworks", type="PARTICLE_SYSTEM")
@@ -115,7 +117,7 @@ def SetUpHairworksMaterial(obj, parent_coll, material):
         node_mod = obj.modifiers.new(type='NODES', name = "SimulationCurves")
         node_mod.node_group = node_group
     
-    SetAttributes(bpy.context.window_manager.physx.hair, material)
+    SetAttributes(wm.hair, material)
                 
 def setup_clothing(context, obj):
     assert(obj.type == 'MESH')
@@ -193,6 +195,8 @@ def setup_clothing(context, obj):
     SetAttributes(bpy.context.window_manager.physx.cloth, sim)
             
 def SetUpClothMaterial(obj, parent_coll, max_dist, sim):
+    wm = bpy.context.window_manager.physx
+    wm.PhysXSubPanel = 'collision'
     selectOnly(obj)
     if "PinGroupTemplate" not in bpy.data.node_groups:
         ImportTemplates()
@@ -213,4 +217,4 @@ def SetUpClothMaterial(obj, parent_coll, max_dist, sim):
     cloth_mod.collision_settings.collection = parent_coll
     settings.effector_weights.collection = parent_coll
     
-    SetAttributes(bpy.context.window_manager.physx.cloth, sim)
+    SetAttributes(wm.cloth, sim)

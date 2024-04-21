@@ -115,6 +115,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
     settings.use_emit_random = False
     settings.count = n_vertices
     growthMesh2 = growthMesh.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    mod2 = growthMesh2.modifiers['Hairworks']
     bpy.ops.object.mode_set(mode='PARTICLE_EDIT')
     particle_edit = bpy.context.tool_settings.particle_edit
     particle_edit.use_emitter_deflect = False
@@ -134,7 +135,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
     kd = MakeKDTree(curveBases)
     
     for i, vert in enumerate(mesh.vertices):
-        part = growthMesh2.particle_systems[-1].particles[i]
+        part = mod2.particle_system.particles[i]
         vert_co = np.array(vert.co)
         # No interpolation for close curve
         closestCurveIndex = getClosest(vert_co, kd, threshold)
@@ -146,12 +147,12 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
             for j, key in enumerate(part.hair_keys):
                 key.co_object_set(
                     object = growthMesh2,
-                    modifier = growthMesh2.modifiers[-1],
+                    modifier = mod2,
                     particle = part,
                     co = closestCurve[j,:3] + diffBase
                 )
             #Hopefully someday usable
-            #growthMesh2.particle_systems[-1].particles[i].hair_keys.foreach_set("co", np.array(closestCurve[:,:3] + diffBase).flatten())
+            #part.hair_keys.foreach_set("co", np.array(closestCurve[:,:3] + diffBase).flatten())
                 
         # Else, Interpolate    
         else:      
@@ -170,12 +171,12 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
             for j, key in enumerate(part.hair_keys):
                 key.co_object_set(
                     object = growthMesh2,
-                    modifier = growthMesh2.modifiers[-1],
+                    modifier = mod2,
                     particle = part,
                     co = interp_co[j] + diffBase
                 )
             #Hopefully someday usable
-            #growthMesh2.particle_systems[-1].particles[i].hair_keys.foreach_set("co", (closestCurve[:,:3] + diffBase).flatten())
+            #part.hair_keys.foreach_set("co", (closestCurve[:,:3] + diffBase).flatten())
                   
     bpy.ops.particle.connect_hair()
     bpy.ops.object.mode_set(mode='OBJECT')

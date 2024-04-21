@@ -1,6 +1,6 @@
 # Blender_APX_Addon
  Import/export .apx cloth and hair simulation files into/from blender.
- Developed for Blender 3.6.5, other versions are not tested.
+ Developed for Blender 4.1.1, other versions are not tested.
 
  This tool comes with a side panel in the 3D Viewport with:
  - Ragdoll subpanel offers easy ragdoll creation, generation and mirroring

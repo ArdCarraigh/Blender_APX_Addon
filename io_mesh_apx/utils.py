@@ -37,7 +37,8 @@ def JoinThem(objects):
     override = bpy.context.copy()
     override["area.type"] = ['OUTLINER']
     override["display_mode"] = ['ORPHAN_DATA']
-    bpy.ops.outliner.orphans_purge(override)
+    with bpy.context.temp_override(**override):
+        bpy.ops.outliner.orphans_purge()
     
 def getConnectedVertices(obj, v_idx, steps):
     interest_verts = [v_idx]
@@ -372,7 +373,8 @@ def set_active_tool(tool_name):
             override = bpy.context.copy()
             override["space_data"] = area.spaces[0]
             override["area"] = area
-            bpy.ops.wm.tool_set_by_id(override, name=tool_name)
+            with bpy.context.temp_override(**override):
+                bpy.ops.wm.tool_set_by_id(name=tool_name)
             
 def getWeightArray(verts, vg):
     idx = vg.index
@@ -483,7 +485,7 @@ def ConvertMode(mode):
             return 'PARTICLE_EDIT'
         
 def draw_max_dist_vectors(obj, vg, max_max_dist, coords, normals):
-    shader_line = gpu.shader.from_builtin('3D_POLYLINE_SMOOTH_COLOR') if not bpy.app.background else None
+    shader_line = gpu.shader.from_builtin('POLYLINE_SMOOTH_COLOR') if not bpy.app.background else None
     gpu.state.blend_set('ALPHA')
     gpu.state.depth_mask_set(True)
     gpu.state.depth_test_set('LESS')
