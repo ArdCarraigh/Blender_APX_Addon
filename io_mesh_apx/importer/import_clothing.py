@@ -14,7 +14,7 @@ from io_mesh_apx.utils import find_elem, to_array, JoinThem, selectOnly, simValu
 from io_mesh_apx.tools.setup_tools import SetUpClothMaterial
 
 def read_clothing(context, filepath, rotate_180, rm_ph_me):
-    # Create Main Collection #
+    # Create Main Collection
     file_name = os.path.splitext(os.path.basename(filepath))[0]
     parent_coll = bpy.context.view_layer.active_layer_collection
     main_coll = bpy.data.collections.new(file_name)
@@ -126,10 +126,10 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
                     normals_text = find_elem(buffer, "array", "name", "data").text
                     normals = to_array(normals_text, float, [-1, 3])
                     assert (len(normals) == numVertices)
-                elif bufferFormats[k] == 'SEMANTIC_TANGENT':
-                    tangents_text = find_elem(buffer, "array", "name", "data").text
-                    tangents = to_array(tangents_text, float, [-1, 4])
-                    assert (len(tangents) == numVertices)
+                #elif bufferFormats[k] == 'SEMANTIC_TANGENT':
+                #    tangents_text = find_elem(buffer, "array", "name", "data").text
+                #    tangents = to_array(tangents_text, float, [-1, 4])
+                #    assert (len(tangents) == numVertices)
                 elif 'SEMANTIC_TEXCOORD' in bufferFormats[k]:
                     uvs_text = find_elem(buffer, "array", "name", "data").text
                     uvs = to_array(uvs_text, float, [-1, 2])

@@ -63,17 +63,18 @@ class PhysXMainPanel(bpy.types.Panel):
             row.alignment = "CENTER"
             row.scale_x = 1.44
             row.scale_y = 1.4
-            row.prop_enum(wm, "PhysXSubPanel", 'collision', text = "")
-            
-            if main_coll["PhysXAssetType"] == "Clothing":
-                row.prop_enum(wm, "PhysXSubPanel", 'painting', text = "")
-                row.prop_enum(wm, "PhysXSubPanel", 'cloth_sim', text = "")
-                row.prop_enum(wm, "PhysXSubPanel", 'cloth_mat', text = "")
+            if main_coll["PhysXAssetType"] != "Destruction":
+                row.prop_enum(wm, "PhysXSubPanel", 'collision', text = "")
                 
-            elif main_coll["PhysXAssetType"] == "Hairworks":
-                row.prop_enum(wm, "PhysXSubPanel", 'hair_pin', text = "")
-                row.prop_enum(wm, "PhysXSubPanel", 'hair_tools', text = "")
-                row.prop_enum(wm, "PhysXSubPanel", 'hair_mat', text = "")
+                if main_coll["PhysXAssetType"] == "Clothing":
+                    row.prop_enum(wm, "PhysXSubPanel", 'painting', text = "")
+                    row.prop_enum(wm, "PhysXSubPanel", 'cloth_sim', text = "")
+                    row.prop_enum(wm, "PhysXSubPanel", 'cloth_mat', text = "")
+                    
+                elif main_coll["PhysXAssetType"] == "Hairworks":
+                    row.prop_enum(wm, "PhysXSubPanel", 'hair_pin', text = "")
+                    row.prop_enum(wm, "PhysXSubPanel", 'hair_tools', text = "")
+                    row.prop_enum(wm, "PhysXSubPanel", 'hair_mat', text = "")
         
         return 
             

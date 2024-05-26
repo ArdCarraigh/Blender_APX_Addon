@@ -326,7 +326,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
         wm = context.window_manager.physx
         if wm.PhysXSubPanel == 'collision':
             main_coll = GetCollection(make_active=False)
-            if main_coll:
+            if main_coll and main_coll["PhysXAssetType"] != "Destruction":
                 
                 sphere_coll = GetCollection("Collision Spheres", make_active=False)
                 connection_coll = GetCollection("Collision Connections", make_active=False)

@@ -4,6 +4,7 @@
 import bpy
 import re
 import numpy as np
+import os.path
 from copy import deepcopy
 from mathutils import Matrix, Vector
 from io_mesh_apx.exporter.template_clothing import *
@@ -666,3 +667,10 @@ def write_clothing(context, filepath):
     #%% write the template with generated values
     with open(filepath, 'w', encoding = 'utf-8') as f:
         f.write(templateClothingMain.format(**kwargs))
+        
+    # Compute cooked data if possible
+    apex_path = bpy.context.preferences.addons[__package__[:-9]].preferences.apex_sdk_cli
+    if os.path.exists(apex_path):
+        import subprocess
+        command = [apex_path, "-s", "apx", filepath]
+        subprocess.run(command)

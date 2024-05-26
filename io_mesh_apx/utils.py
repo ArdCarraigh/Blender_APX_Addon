@@ -314,7 +314,7 @@ def GetCollection(target = "Main", create_if_missing = False, make_active = True
                 if make_active:
                     bpy.context.view_layer.active_layer_collection = main_coll_layer.children[main_coll.name]
             
-            elif target in ["Collision Spheres", "Collision Connections", "Pin Constraints", "Collision Capsules", "No Collision"]:
+            elif target in ["Collision Spheres", "Collision Connections", "Pin Constraints", "Collision Capsules", "No Collision", "Chunks", "Curves"]:
                 for col in main_coll.children:
                     if re.search(target, col.name):
                         target_coll = col
