@@ -17,8 +17,8 @@
  ## Recommendations
  
  - In order to read .apb files, you must indicate the path to the APEX SDK command line .exe in the addon preferences.
- ![addon_preferences](https://imgur.com/a/mEf4xpV)
- You can get that **ParamToolPROFILE.exe** by downloading the APEX SDK (v1.3.0 or v1.3.1) [here]https://developer.nvidia.com/gameworksdownload#?search=physX .
+ ![Imgur](https://i.imgur.com/5Vnfx5P.png)
+ You can get that **ParamToolPROFILE.exe** by downloading the APEX SDK (v1.3.0 or v1.3.1) [here](https://developer.nvidia.com/gameworksdownload#?search=physX).
  
  ## Limitations
  
@@ -40,7 +40,7 @@
  
  [Official APEX Cloth Documentation](https://gameworksdocs.nvidia.com/APEX/1.4/docs/APEX_Clothing/Index.html)
  
- [Official Hairworks Documentation] (https://docs.nvidia.com/gameworks/content/artisttools/hairworks/product.html)
+ [Official Hairworks Documentation](https://docs.nvidia.com/gameworks/content/artisttools/hairworks/product.html)
  
  Copyright (c) 2021 Ard Carraigh
  
