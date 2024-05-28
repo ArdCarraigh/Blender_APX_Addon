@@ -284,6 +284,11 @@ def get_parent_collection(coll, parent_colls):
     for parent_collection in bpy.data.collections:
         if coll.name in parent_collection.children.keys():
             parent_colls.append(parent_collection)
+            break
+    for koll in parent_colls:
+        for parent_collection in bpy.data.collections:
+            if koll.name in parent_collection.children.keys():
+                parent_colls.append(parent_collection)
     
 def GetCollection(target = "Main", create_if_missing = False, make_active = True):
     active_coll = bpy.context.view_layer.active_layer_collection

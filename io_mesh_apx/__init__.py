@@ -4,7 +4,7 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx/.apb)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (5, 2),
+    "version": (5, 3),
     "blender": (4, 1, 1),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
@@ -158,6 +158,8 @@ class ExportApx(Operator, ExportHelper):
         max = 99,
         min = 2,
     )
+    
+    n_verts_check = False
 
     def draw(self, context):
         layout = self.layout
@@ -169,10 +171,12 @@ class ExportApx(Operator, ExportHelper):
             box.label(text="Hairworks", icon='PARTICLE_POINT')
             box_row = box.row()
             box_row.prop(self, "resample_value")
-            if self.resample_value != nverts:
+            if self.resample_value != nverts and not self.n_verts_check:
                 self.resample_value = nverts
+                self.n_verts_check = True
 
     def execute(self, context):
+        context.scene.frame_set(0)
         # Should work from all modes
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -183,9 +187,10 @@ class ExportApx(Operator, ExportHelper):
         if "PhysXAssetType" in main_coll:
             if main_coll["PhysXAssetType"] == 'Hairworks':
                 write_hairworks(context, self.filepath, self.resample_value)
+                self.n_verts_check = False
             elif main_coll["PhysXAssetType"] == 'Clothing':
                 write_clothing(context, self.filepath)
-        
+                
         return {'FINISHED'}
     
 class PhysXProperties(PropertyGroup):
@@ -241,21 +246,4 @@ def unregister():
     for klass in CLASSES:
         bpy.utils.unregister_class(klass)
         
-    for (prop_name, _) in PROPS_HAIR:
-        delattr(bpy.types.WindowManager.physx.hair, prop_name)
-    delattr(bpy.types.WindowManager.physx, "hair")
-    
-    for (prop_name, _) in PROPS_CLOTH:
-        delattr(bpy.types.WindowManager.physx.cloth, prop_name)
-    delattr(bpy.types.WindowManager.physx, "cloth")
-    
-    for (prop_name, _) in PROPS:
-        delattr(bpy.types.WindowManager.physx, prop_name)
     delattr(bpy.types.WindowManager, "physx")
-        
-
-if __name__ == "__main__":
-    register()
-    
-    # test call
-    bpy.ops.import_test.apx('INVOKE_DEFAULT')

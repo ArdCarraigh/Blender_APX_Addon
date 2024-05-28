@@ -115,7 +115,6 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
     settings.use_emit_random = False
     settings.count = n_vertices
     growthMesh2 = growthMesh.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    mod2 = growthMesh2.modifiers['Hairworks']
     bpy.ops.object.mode_set(mode='PARTICLE_EDIT')
     particle_edit = bpy.context.tool_settings.particle_edit
     particle_edit.use_emitter_deflect = False
@@ -135,7 +134,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
     kd = MakeKDTree(curveBases)
     
     for i, vert in enumerate(mesh.vertices):
-        part = mod2.particle_system.particles[i]
+        part = growthMesh2.particle_systems[-1].particles[i]
         vert_co = np.array(vert.co)
         # No interpolation for close curve
         closestCurveIndex = getClosest(vert_co, kd, threshold)
@@ -147,7 +146,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
             for j, key in enumerate(part.hair_keys):
                 key.co_object_set(
                     object = growthMesh2,
-                    modifier = mod2,
+                    modifier = growthMesh2.modifiers[-1],
                     particle = part,
                     co = closestCurve[j,:3] + diffBase
                 )
@@ -171,7 +170,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
             for j, key in enumerate(part.hair_keys):
                 key.co_object_set(
                     object = growthMesh2,
-                    modifier = mod2,
+                    modifier = growthMesh2.modifiers[-1],
                     particle = part,
                     co = interp_co[j] + diffBase
                 )
@@ -207,7 +206,7 @@ def create_curve(context, obj):
     bpy.context.view_layer.active_layer_collection = parent_coll.children[curve_coll.name]
     
     # Create curves from guides
-    hairs = growthMesh.modifiers['Hairworks'].particle_system.particles
+    hairs = growthMesh.modifiers["Hairworks"].particle_system.particles
     n_keys = len(hairs[0].hair_keys)
     curve_pos_array = np.zeros(n_keys * 3)
     array_ones = np.ones((n_keys,1))

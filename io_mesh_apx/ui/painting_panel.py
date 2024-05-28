@@ -202,6 +202,7 @@ def updateClothPaintingMode(self, context):
     vgroups = applyDriveLatch(obj)
     mode = context.mode
     view_prefs = context.preferences.view
+    context.scene.frame_set(0)
     if self.clothPaintingMode:
         self.previousMode = mode
         context.scene.frame_set(0)
@@ -241,7 +242,7 @@ def updateClothPaintingMode(self, context):
         obj.show_wire = False
         if mode == 'PAINT_WEIGHT': 
             bpy.ops.object.mode_set(mode=ConvertMode(self.previousMode))
-        context.scene.frame_set(0)
+    bpy.ops.wm.save_userpref()
         
 def updatePaintLayer(self, context):
     vgroups = applyDriveLatch(context.active_object)
