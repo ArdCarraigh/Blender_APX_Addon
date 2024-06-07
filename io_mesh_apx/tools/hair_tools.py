@@ -78,6 +78,7 @@ def remove_pin(context, index):
             bpy.data.collections.remove(pin_coll, do_unlink=True)
     
 def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.001, hair_key = 0, update_material = False):
+    context.scene.frame_set(0)
     selectOnly(growthMesh)
     mesh = growthMesh.data
     n_vertices = len(mesh.vertices)
@@ -195,6 +196,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
     return curves_pos
         
 def create_curve(context, obj):
+    context.scene.frame_set(0)
     # Get the growthmesh
     growthMesh = obj.evaluated_get(context.evaluated_depsgraph_get())
     

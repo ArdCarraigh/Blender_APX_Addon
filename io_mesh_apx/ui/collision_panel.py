@@ -15,6 +15,7 @@ class GenerateRagdoll(Operator):
     bl_idname = "physx.generate_ragdoll"
     bl_label = "Generate a Ragdoll !!!Keep in mind PhysX only supports 31 collision spheres!!!"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "object"
     
     object: EnumProperty(
         options={'HIDDEN'},
@@ -31,7 +32,10 @@ class GenerateRagdoll(Operator):
         return {'FINISHED'}
     
     def invoke(self, context, event):
-        return bpy.context.window_manager.invoke_confirm(self, event)
+        context.window_manager.invoke_search_popup(self)
+        #context.window_manager.invoke_confirm(self, event)
+        return {'RUNNING_MODAL'}
+        
     
 class MirrorRagdoll(Operator):
     """Mirror collision objects according to string pattern in bone names"""
@@ -75,7 +79,8 @@ class AddCollisionSphere(Operator):
     bl_idname = "physx.add_collision_sphere"
     bl_label = "Add Collision Sphere"
     bl_options = {'REGISTER', 'UNDO'}
-
+    bl_property = "bone"
+    
     radius: FloatProperty(
         name="Radius",
         default = 0.15,
@@ -106,6 +111,10 @@ class AddCollisionSphere(Operator):
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
         add_sphere(context, self.bone, self.radius, self.location, self.use_location)
         return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
     
 class RemoveCollisionSphere(Operator):
     """Remove a Collision Sphere"""
@@ -187,6 +196,7 @@ class AddCollisionCapsule(Operator):
     bl_idname = "physx.add_collision_capsule"
     bl_label = "Add Collision Capsule"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "bone"
 
     radius: FloatProperty(
         name="Radius",
@@ -230,6 +240,10 @@ class AddCollisionCapsule(Operator):
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
         add_capsule(context, self.bone, self.radius, self.height, self.location, self.rotation, self.use_location)
         return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
     
 class RemoveCollisionCapsule(Operator):
     """Remove a Collision Capsule"""
@@ -344,7 +358,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
                     box_row = box.row()
                     box_row.prop(wm, "CollisionDisplayType", text = "Display As")
                 box_row = box.row()
-                box_row.operator_menu_enum(GenerateRagdoll.bl_idname, property = "object", text = "Generate Ragdoll")
+                box_row.operator(GenerateRagdoll.bl_idname, text = "Generate Ragdoll")
                 if n_spheres:
                     box_row = box.row()
                     box_row.operator(MirrorRagdoll.bl_idname, text = "Mirror Ragdoll", icon = 'MOD_MIRROR')
@@ -364,7 +378,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
                 box_row = box.row()
                 col = box_row.column()
                 col.enabled = (n_spheres < 32 and main_coll["PhysXAssetType"] == "Clothing") or main_coll["PhysXAssetType"] == "Hairworks"
-                col.operator_menu_enum(AddCollisionSphere.bl_idname, property = "bone", text="Add")
+                col.operator(AddCollisionSphere.bl_idname, text="Add")
                 col = box_row.column()
                 col.enabled = wm.PhysXCollisionSpheresIndex != -1
                 col.operator(RemoveCollisionSphere.bl_idname, text = "Remove")
@@ -409,7 +423,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
                     box_row = box.row()
                     col = box_row.column()
                     col.enabled = n_spheres < 31
-                    col.operator_menu_enum(AddCollisionCapsule.bl_idname, property = "bone", text="Add")
+                    col.operator(AddCollisionCapsule.bl_idname, text="Add")
                     col = box_row.column()
                     col.enabled = wm.PhysXCollisionCapsulesIndex != -1
                     col.operator(RemoveCollisionCapsule.bl_idname, text = "Remove")

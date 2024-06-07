@@ -13,6 +13,7 @@ class ShapeHairInterp(Operator):
     bl_idname = "physx.shape_hair_interp"
     bl_label = "Shape Hair from Curves"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "collection"
     
     steps: IntProperty(
         name="Interpolation Steps",
@@ -46,6 +47,10 @@ class ShapeHairInterp(Operator):
         shape_hair_interp(context, GetArmature().children[0], self.collection, self.steps, self.threshold, self.hair_key, True)
         return {'FINISHED'}
     
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
+    
 class CreateCurve(Operator):
     """Create Curves from Hair"""
     bl_idname = "physx.create_curve"
@@ -65,6 +70,7 @@ class HaircardCurve(Operator):
     bl_idname = "physx.haircard_curve"
     bl_label = "Create Curves from Haircard Mesh"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "hair_mesh"
     
     uv_orientation: EnumProperty(
         name="UV Orientation",
@@ -99,6 +105,10 @@ class HaircardCurve(Operator):
         haircard_curve(context, self.hair_mesh, self.uv_orientation, self.tolerance)
         return {'FINISHED'}
     
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
+    
 class PhysXHairToolsPanel(bpy.types.Panel):
     bl_idname = 'VIEW3D_PT_PhysX_hair_tools_panel'
     bl_parent_id = 'VIEW3D_PT_PhysX_panel'
@@ -121,10 +131,10 @@ class PhysXHairToolsPanel(bpy.types.Panel):
                 row.operator(CreateCurve.bl_idname, text = "Convert Hair to Curves")
                 
                 row = layout.row()
-                row.operator_menu_enum(ShapeHairInterp.bl_idname,  property = "collection", text = "Convert Curves to Hair")
+                row.operator(ShapeHairInterp.bl_idname, text = "Convert Curves to Hair")
                 
                 row = layout.row()
-                row.operator_menu_enum(HaircardCurve.bl_idname,  property = "hair_mesh", text = "Convert Hair Cards to Curves ")
+                row.operator(HaircardCurve.bl_idname, text = "Convert Hair Cards to Curves ")
             
         return
         

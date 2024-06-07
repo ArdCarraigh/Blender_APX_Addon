@@ -143,7 +143,7 @@ PROPS_ClothSimulation_Panel = [
     )),
 ('thickness', FloatProperty(
         name="Thickness",
-        description="Minimal amount of separation between cloth particles and collision volumes. Each cloth particle will minimaly have as much distance to any collision volume. Most stable when this value corresponds roughly to half the average edge length. Can eb increased to prevent penetration artifacts",
+        description="Minimal amount of separation between cloth particles and collision volumes. Each cloth particle will minimaly have as much distance to any collision volume. Most stable when this value corresponds roughly to half the average edge length. Can be increased to prevent penetration artifacts",
         default=0.06,
         min=0.0001,
         update=updateThickness

@@ -4,7 +4,7 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx/.apb)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (5, 3),
+    "version": (5, 4),
     "blender": (4, 1, 1),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
@@ -130,7 +130,7 @@ class ImportApx(Operator, ImportHelper):
                     elif 'DestructibleAssetParameters' in line:
                         read_destruction(context, self.filepath, self.rotate_180)
                     break
-
+                
         # Unselect everything
         bpy.context.view_layer.objects.active = None
         bpy.ops.object.select_all(False)

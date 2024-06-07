@@ -15,6 +15,7 @@ class AddPinSphere(Operator):
     bl_idname = "physx.add_pin_sphere"
     bl_label = "Add Pin Sphere"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "bone"
 
     radius: FloatProperty(
         name="Radius",
@@ -46,6 +47,10 @@ class AddPinSphere(Operator):
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
         add_pin(context, self.bone, self.radius, self.location, self.use_location)
         return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
     
 class RemovePinSphere(Operator):
     """Remove a Pin Sphere"""
@@ -112,7 +117,7 @@ class PhysXHairPinPanel(bpy.types.Panel):
                     
                 row = layout.row()
                 col = row.column()
-                col.operator_menu_enum(AddPinSphere.bl_idname, property = "bone", text="Add")
+                col.operator(AddPinSphere.bl_idname, text="Add")
                 col = row.column()
                 col.enabled = wm.PhysXPinSpheresIndex != -1
                 col.operator(RemovePinSphere.bl_idname, text = "Remove")
