@@ -109,7 +109,8 @@ class AddCollisionSphere(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        add_sphere(context, self.bone, self.radius, self.location, self.use_location)
+        coll = GetCollection("Collision Spheres", make_active=False)
+        add_sphere(context, self.bone, self.radius, self.location, self.use_location, coll is None)
         return {'FINISHED'}
     
     def invoke(self, context, event):
@@ -147,8 +148,9 @@ class AddSphereConnection(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        coll = GetCollection("Collision Connections", make_active=False)
         wm = bpy.context.window_manager.physx
-        add_connection(context, [wm.collisionSphere1, wm.collisionSphere2])
+        add_connection(context, [wm.collisionSphere1, wm.collisionSphere2], coll is None)
         wm.collisionSphere1 = None
         wm.collisionSphere2 = None
         return {'FINISHED'}
@@ -238,7 +240,8 @@ class AddCollisionCapsule(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        add_capsule(context, self.bone, self.radius, self.height, self.location, self.rotation, self.use_location)
+        coll = GetCollection("Collision Capsules", make_active=False)
+        add_capsule(context, self.bone, self.radius, self.height, self.location, self.rotation, self.use_location, coll is None)
         return {'FINISHED'}
     
     def invoke(self, context, event):
@@ -437,9 +440,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
                         
                         box_row = box.row()
                         box_row.operator(ConvertCapsuleToSphere.bl_idname, text = "Convert Capsules")
-                    
-                    
-            
+
         return
     
 def updateCollisionDisplayType(self, context):

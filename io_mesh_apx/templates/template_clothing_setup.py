@@ -33,7 +33,8 @@ templateClothMat = {
 'hierarchicalSolverIterations': 0, 
 'selfcollisionThickness': 0.0, 
 'selfcollisionSquashScale': 0.0, 
-'selfcollisionStiffness': 0.0
+'selfcollisionStiffness': 0.0,
+'maximumMaxDistance': 1.0
 }
 
 templateClothSim = {

@@ -179,13 +179,13 @@ def write_clothing(context, filepath):
         kwargs_physical['skinningNormals_PhysicalMesh'] = kwargs_physical['normals_PhysicalMesh']
         
         # Constrain Coefficients
-        maximumMaxDistance = obj.modifiers["PinGroup"].node_group.nodes["Maximum Max Distance"].inputs[1].default_value
+        maximumMaxDistance = obj['maximumMaxDistance']
         n_groups, driveDataPhysical, latchDataPhysical = cleanUpDriveLatchGroups(physicalMesh, True)
         driveLatchGroupPhysical = np.argmax(driveDataPhysical, axis=1)
         constrainCoefficients = []
         for vg in ["PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance"]:
             color_array2 = getWeightArray(physics_mesh.vertices, vertex_groups[vg])
-            if vg == "MaximumDistance": color_array2 *= maximumMaxDistance
+            if vg == "PhysXMaximumDistance": color_array2 *= maximumMaxDistance
             constrainCoefficients.append(deepcopy(color_array2))
         constrainCoefficients = np.array(constrainCoefficients).T
         kwargs_physical['constrainCoefficients_PhysicalMesh'] = ','.join([' '.join(map(str, x)) for x in constrainCoefficients])
@@ -483,6 +483,7 @@ def write_clothing(context, filepath):
             kwargs_materials[key] = meshLod[key]
             if type(kwargs_materials[key]) == bool:
                 kwargs_materials[key] = str(kwargs_materials[key]).lower()
+        kwargs_materials.pop("maximumMaxDistance")
         
         # Immediate Cloth Map
         if immediateClothMap_bool:

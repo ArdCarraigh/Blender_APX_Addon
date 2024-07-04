@@ -10,7 +10,7 @@ from bpy_extras.object_utils import object_data_add
 from mathutils import Vector, Matrix
 from io_mesh_apx.number_to_words import getWords
 from io_mesh_apx.tools.collision_tools import *
-from io_mesh_apx.utils import find_elem, to_array, JoinThem, selectOnly, simValueType, SetAttributes, SetUpWind, SetUpDrag
+from io_mesh_apx.utils import find_elem, to_array, JoinThem, selectOnly, simValueType, SetAttributes
 from io_mesh_apx.tools.setup_tools import SetUpClothMaterial
 
 def read_clothing(context, filepath, rotate_180, rm_ph_me):
@@ -21,10 +21,6 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
     main_coll["PhysXAssetType"] = "Clothing"
     parent_coll.collection.children.link(main_coll)
     bpy.context.view_layer.active_layer_collection = parent_coll.children[main_coll.name]
-    
-    # Set Up Wind
-    SetUpWind()
-    SetUpDrag()
 
     # Parse File
     root = ET.parse(filepath).getroot() #NxParameters element
@@ -247,6 +243,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         faces = to_array(faces_text, int, [-1, 3])
         assert (len(faces) == numFaces)
         maximumMaxDistance = float(find_elem(PhysicalMesh, "value", "name", "maximumMaxDistance").text)
+        sim_mats[i]["maximumMaxDistance"] = maximumMaxDistance
             
         # Add the mesh to the scene
         mesh = bpy.data.meshes.new(name="PMesh_lod"+str(i))
@@ -290,7 +287,6 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         #            obj.vertex_groups[boneNames[indices[l]]].add([k], weight, 'REPLACE')
             
         # Copy vertex groups data to Graphical Meshes
-        graph_mesh.vertex_groups.new(name="SimplyPin")
         graph_mesh.vertex_groups.new(name="PhysXMaximumDistance")
         graph_mesh.vertex_groups.new(name="PhysXBackstopRadius")
         graph_mesh.vertex_groups.new(name="PhysXBackstopDistance")
@@ -323,7 +319,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
                 graph_mesh.vertex_groups["PhysXLatch1"].add([k], 1, 'REPLACE')
                 
         # Setup Cloth Material
-        SetUpClothMaterial(graph_mesh, main_coll, maximumMaxDistance, sim_mats[i])
+        SetUpClothMaterial(graph_mesh, main_coll, sim_mats[i])
         
     # Setup Cloth Simulation
     sim_xml = find_elem(ClothingAssetParameters, "struct", "name", "simulation")
@@ -359,3 +355,15 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         boneCapsuleIndices = to_array(boneCapsuleIndices_text, int, [-1, 2])
         for a, b in boneCapsuleIndices:
             add_connection(bpy.context, [sphere_objs[a], sphere_objs[b]])
+            
+    # Setup Simulation Collision
+    sphere_coll = GetCollection("Collision Spheres", make_active=False)
+    connection_coll = GetCollection("Collision Connections", make_active=False)
+    capsule_coll = GetCollection("Collision Capsules", make_active=False)
+    for ob in arma.children:
+        if sphere_coll:
+            ob.modifiers['ClothSimulation']['Input_14'] = sphere_coll
+        if connection_coll:
+            ob.modifiers['ClothSimulation']['Socket_2'] = connection_coll
+        if capsule_coll:
+            ob.modifiers['ClothSimulation']['Socket_3'] = capsule_coll

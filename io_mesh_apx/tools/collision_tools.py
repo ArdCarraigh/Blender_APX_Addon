@@ -9,11 +9,15 @@ from mathutils import Vector
 from copy import deepcopy
 from io_mesh_apx.utils import JoinThem, applyTransforms, selectOnly, GetCollection, ImportTemplates, GetArmature, getWeightArray
 
-def add_sphere(context, bone, radius, location, use_location):
+def add_sphere(context, bone, radius, location, use_location, set_sim = False):
     collision_coll = GetCollection("Collision Spheres", True)
     spheres = collision_coll.objects
     main_coll = GetCollection(make_active=False)
+    arma = GetArmature()   
     if main_coll["PhysXAssetType"] == "Clothing":
+        if set_sim:
+            for obj in arma.children:
+                obj.modifiers['ClothSimulation']['Input_14'] = collision_coll
         capsule_coll = GetCollection("Collision Capsules", make_active=False)
         n_spheres = 0
         if collision_coll:
@@ -21,8 +25,7 @@ def add_sphere(context, bone, radius, location, use_location):
         if capsule_coll:
             n_spheres += len(capsule_coll.objects)*2
         assert(n_spheres < 32)
-        
-    arma = GetArmature()
+           
     bone = arma.data.bones[bone]
     bonePos = np.array(bone.matrix_local.translation)
     boneScale = np.array(arma.scale)
@@ -85,8 +88,13 @@ def remove_sphere(context, index):
         if not collision_coll.objects:
             bpy.data.collections.remove(collision_coll, do_unlink=True)
     
-def add_connection(context, objects):
+def add_connection(context, objects, set_sim = False):
     collision_coll = GetCollection("Collision Connections", True)
+    main_coll = GetCollection(make_active=False)
+    arma = GetArmature()
+    if main_coll["PhysXAssetType"] == "Clothing" and set_sim:
+        for obj in arma.children:
+            obj.modifiers['ClothSimulation']['Socket_2'] = collision_coll
         
     #objCenter = []
     #objRadius = []
@@ -175,8 +183,12 @@ def remove_connection(context, index):
         if not collision_coll.objects:
             bpy.data.collections.remove(collision_coll, do_unlink=True)
     
-def add_capsule(context, bone, radius, height, location, rotation, use_location):
+def add_capsule(context, bone, radius, height, location, rotation, use_location, set_sim = False):
     collision_coll = GetCollection("Collision Capsules", True)
+    arma = GetArmature()
+    if set_sim:
+        for obj in arma.children:
+            obj.modifiers['ClothSimulation']['Socket_3'] = collision_coll
     capsules = collision_coll.objects
     sphere_coll = GetCollection("Collision Spheres", make_active=False)
     n_spheres = 0
@@ -186,7 +198,6 @@ def add_capsule(context, bone, radius, height, location, rotation, use_location)
         n_spheres += len(collision_coll.objects)*2
     assert(n_spheres < 31)
     
-    arma = GetArmature()
     bone = arma.data.bones[bone]
     bonePos = np.array(bone.matrix_local.translation)
     boneScale = np.array(arma.scale)

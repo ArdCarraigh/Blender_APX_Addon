@@ -143,78 +143,72 @@ def setup_clothing(context, obj):
         apx_coll = main_colls[0]
         apx_coll["PhysXAssetType"] = "Clothing"
         
+    # Check Collision Collections
+    sphere_coll = GetCollection("Collision Spheres", make_active=False)
+    connection_coll = GetCollection("Collision Connections", make_active=False)
+    capsule_coll = GetCollection("Collision Capsules", make_active=False)
+        
     # Check Armature
-    GetArmature()
+    arma = GetArmature()
     assert(obj.parent.type == 'ARMATURE')
     
-    # Set Up Paints
-    for layer in ["SimplyPin", "PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance", "PhysXDrive1", "PhysXLatch1"]:
-        if layer not in obj.vertex_groups:
-            obj.vertex_groups.new(name=layer)
-            if layer == "PhysXDrive1":
-                drive_group = obj.vertex_groups["PhysXDrive1"]
-                for k in range(len(mesh.vertices)):
-                    drive_group.add([k], 1, 'REPLACE')
-    cleanUpDriveLatchGroups(obj)
-           
-    # Check Material 
-    if not mesh.materials:
-        temp_mat = bpy.data.materials.new(name="Material")
-        mesh.materials.append(temp_mat)
-        temp_mat.diffuse_color = (*colorsys.hsv_to_rgb(random.random(), .7, .9), 1)
-        
-    # Remove particle systems/Hairworks
-    while obj.particle_systems:
-        bpy.ops.object.particle_system_remove()
-        
-    # Check Wind
-    GetWind()
-    # Check Drag
-    GetDrag()
-        
-    # Setup Cloth Material
-    max_dist = 1
-    for mod in obj.modifiers:
-        if mod.name in ["WeightedNormal", "PinGroup", "ClothSimulation"]:
-            if mod == "PinGroup":
-                max_dist = obj.modifiers["PinGroup"].node_group.nodes['Maximum Max Distance'].inputs[1].default_value
-            obj.modifiers.remove(mod)
-    
-    cloth = deepcopy(templateClothMat)       
-    for key in obj.keys():
-        if key in templateClothMat:
-            cloth[key] = obj[key]
-    
-    SetUpClothMaterial(obj, apx_coll, max_dist, cloth)
-    
-    # Setup Cloth Simulation
-    sim = deepcopy(templateClothSim)
-    for key in apx_coll.keys():
-        if key in templateClothSim:
-            sim[key] = apx_coll[key]
-    SetAttributes(bpy.context.window_manager.physx.cloth, sim)
+    for ob in arma.children:
+        # Set Up Paints
+        for layer in ["PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance", "PhysXDrive1", "PhysXLatch1"]:
+            if layer not in ob.vertex_groups:
+                ob.vertex_groups.new(name=layer)
+                if layer == "PhysXDrive1":
+                    drive_group = ob.vertex_groups["PhysXDrive1"]
+                    for k in range(len(mesh.vertices)):
+                        drive_group.add([k], 1, 'REPLACE')
+        cleanUpDriveLatchGroups(ob)
+               
+        # Check Material 
+        if not mesh.materials:
+            temp_mat = bpy.data.materials.new(name="Material")
+            mesh.materials.append(temp_mat)
+            temp_mat.diffuse_color = (*colorsys.hsv_to_rgb(random.random(), .7, .9), 1)
             
-def SetUpClothMaterial(obj, parent_coll, max_dist, sim):
+        # Remove particle systems/Hairworks
+        while ob.particle_systems:
+            bpy.ops.object.particle_system_remove()
+            
+        # Setup Cloth Material
+        if "ClothSimulation" in ob.modifiers:
+            ob.modifiers.remove(ob.modifiers["ClothSimulation"])
+        
+        cloth = deepcopy(templateClothMat)       
+        for key in ob.keys():
+            if key in templateClothMat:
+                cloth[key] = ob[key]
+        
+        SetUpClothMaterial(ob, apx_coll, cloth)
+        
+        # Setup Cloth Simulation
+        sim = deepcopy(templateClothSim)
+        for key in apx_coll.keys():
+            if key in templateClothSim:
+                sim[key] = apx_coll[key]
+        SetAttributes(bpy.context.window_manager.physx.cloth, sim)
+    
+        # Setup Simulation Collision
+        if sphere_coll:
+            ob.modifiers['ClothSimulation']['Input_14'] = sphere_coll
+        if connection_coll:
+            ob.modifiers['ClothSimulation']['Socket_2'] = connection_coll
+        if capsule_coll:
+            ob.modifiers['ClothSimulation']['Socket_3'] = capsule_coll
+            
+def SetUpClothMaterial(obj, parent_coll, sim):
     wm = bpy.context.window_manager.physx
     wm.PhysXSubPanel = 'collision'
     selectOnly(obj)
-    if "PinGroupTemplate" not in bpy.data.node_groups:
+    if "ClothSimulationTemplate" not in bpy.data.node_groups:
         ImportTemplates()
-        
-    obj.modifiers.new(type='WEIGHTED_NORMAL', name = "WeightedNormal")
     
-    node_group = bpy.data.node_groups["PinGroupTemplate"].copy()
-    node_group.name = "PinGroup"
-    node_group.nodes['Maximum Max Distance'].inputs[1].default_value = max_dist
-    node_mod = obj.modifiers.new(type='NODES', name = "PinGroup")
+    node_group = bpy.data.node_groups["ClothSimulationTemplate"].copy()
+    node_group.name = "ClothSimulation"
+    node_mod = obj.modifiers.new(type='NODES', name = "ClothSimulation")
     node_mod.node_group = node_group
-    
-    cloth_mod = obj.modifiers.new(type='CLOTH', name = "ClothSimulation")
-    settings = cloth_mod.settings
-    settings.vertex_group_mass = "SimplyPin"
-    settings.pin_stiffness = 0
-    settings.use_internal_springs = True
-    cloth_mod.collision_settings.collection = parent_coll
-    settings.effector_weights.collection = parent_coll
     
     SetAttributes(wm.cloth, sim)

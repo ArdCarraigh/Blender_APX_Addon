@@ -382,11 +382,10 @@ def set_active_tool(tool_name):
                 bpy.ops.wm.tool_set_by_id(name=tool_name)
             
 def getWeightArray(verts, vg):
-    idx = vg.index
     weights = []
-    for v in verts:
+    for i in range(len(verts)):
         try:
-            weights.append(v.groups[[g.group for g in v.groups].index(idx)].weight)
+            weights.append(vg.weight(i))
         except:
             weights.append(0)
     return np.array(weights)

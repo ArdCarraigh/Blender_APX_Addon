@@ -6,7 +6,7 @@ import re
 from bpy.props import EnumProperty, BoolProperty, FloatProperty, IntProperty
 from bpy.types import Operator, SpaceView3D
 from io_mesh_apx.utils import GetCollection, GetArmature, set_active_tool, ConvertMode, draw_max_dist_vectors, vertices_global_co_normal, setCustomWeightPalette
-from io_mesh_apx.tools.paint_tools import add_drive_latch_group, applyDriveLatch, floodAllVertices, smoothAllVertices
+from io_mesh_apx.tools.paint_tools import add_drive_latch_group, applyDriveLatch, floodAllVertices, smoothAllVertices, copyMaxDistance
 
 class SmoothAll(Operator):
     """Smooth All"""
@@ -32,6 +32,17 @@ class FloodAll(Operator):
         vgroups = obj.vertex_groups
         group_name = vgroups[vgroups.active_index].name
         floodAllVertices(context, obj, group_name, context.scene.tool_settings.unified_paint_settings.weight)
+        return {'FINISHED'}
+    
+class CopyMaxDistance(Operator):
+    """Copy Maximum Distance Paint"""
+    bl_idname = "physx.copy_max_dist"
+    bl_label = "Copy Maximum Distance Paint"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        obj = context.active_object
+        copyMaxDistance(context, obj)
         return {'FINISHED'}
     
 class PhysXDisplayPaintVectors(Operator):
@@ -97,9 +108,8 @@ class PhysXPaintingPanel(bpy.types.Panel):
                 
                 row = layout.row()
                 row.prop(wm, "maximumMaxDistance", text = "Maximum Max Distance")
-                max_dist = obj.modifiers["PinGroup"].node_group.nodes["Maximum Max Distance"].inputs[1].default_value
-                if wm.maximumMaxDistance != max_dist:
-                    wm.maximumMaxDistance = max_dist
+                if wm.maximumMaxDistance != obj["maximumMaxDistance"]:
+                    wm.maximumMaxDistance = obj["maximumMaxDistance"]
                 
                 vgroups = obj.vertex_groups
                 active_name = vgroups[vgroups.active_index].name
@@ -191,11 +201,19 @@ class PhysXPaintingPanel(bpy.types.Panel):
                 row = layout.row()
                 row.enabled = wm.clothPaintingMode
                 row.operator(FloodAll.bl_idname, text="Flood All", icon='IMAGE')
+                
+                if wm.paintLayer == 'PhysXBackstopDistance':
+                    row = layout.row()
+                    row.enabled = wm.clothPaintingMode
+                    row.operator(CopyMaxDistance.bl_idname, text="Copy Maximum Distance", icon='DRIVER_DISTANCE')
         return
     
 def updateMaximumMaxDistance(self, context):
     obj = context.active_object
-    obj.modifiers["PinGroup"].node_group.nodes["Maximum Max Distance"].inputs[1].default_value = self.maximumMaxDistance
+    obj["maximumMaxDistance"] = self.maximumMaxDistance
+    mod = obj.modifiers['ClothSimulation']
+    mod["Socket_11"] = self.maximumMaxDistance
+    mod.node_group.interface_update(context)
     
 def updateClothPaintingMode(self, context):
     obj = context.active_object
@@ -205,7 +223,6 @@ def updateClothPaintingMode(self, context):
     context.scene.frame_set(0)
     if self.clothPaintingMode:
         self.previousMode = mode
-        context.scene.frame_set(0)
         bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
         view_prefs.use_weight_color_range = True
         view_prefs.weight_color_range.color_mode = 'RGB'
@@ -308,6 +325,9 @@ def updateDriveLatchGroup(self, context):
     if self.driveLatchGroup == 'NewGroup':
         add_drive_latch_group(obj)
         self.driveLatchGroup = "Group" + self.driveLatchGroup[5:]
+        mod = obj.modifiers['ClothSimulation']
+        mod["Socket_0"] += 1
+        mod.node_group.interface_update(context)
         
     vgroups.active_index = vgroups["PhysX" + self.driveLatchMode + self.driveLatchGroup[5:]].index
         
@@ -419,4 +439,4 @@ PROPS_Painting_Panel = [
     ))
 ]
 
-CLASSES_Painting_Panel = [SmoothAll, FloodAll, PhysXDisplayPaintVectors, PhysXPaintingPanel]
+CLASSES_Painting_Panel = [SmoothAll, FloodAll, CopyMaxDistance, PhysXDisplayPaintVectors, PhysXPaintingPanel]

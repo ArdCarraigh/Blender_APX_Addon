@@ -208,41 +208,26 @@ class PhysXClothMaterialPanel(bpy.types.Panel):
                         wm.maxDistanceBias = obj["maxDistanceBias"]    
                     
         return
-    
-def updateStiffness(self, context, obj):
-    settings = obj.modifiers["ClothSimulation"].settings
-    stiffness = np.mean([self.verticalStretchingStiffness, self.horizontalStretchingStiffness])
-    settings.tension_stiffness = stiffness * 15
-    settings.compression_stiffness = stiffness * 15
-    
-def updateSelfCollision(self, context, obj):
-    settings = obj.modifiers["ClothSimulation"].collision_settings
-    settings.self_distance_min = self.selfcollisionThickness * 0.125
-    settings.self_friction = self.selfcollisionStiffness * 80
-    if self.selfcollisionStiffness and self.selfcollisionThickness:
-        settings.use_self_collision = True
-    else:
-        settings.use_self_collision = False
         
 def updateVerticalStretchingStiffness(self, context):
     obj = context.active_object
     obj["verticalStretchingStiffness"] = self.verticalStretchingStiffness
-    updateStiffness(self, context, obj)
+    mod = obj.modifiers['ClothSimulation']
+    mod["Socket_17"] = self.verticalStretchingStiffness
+    mod.node_group.interface_update(context)
     
 def updateHorizontalStretchingStiffness(self, context):
     obj = context.active_object
     obj["horizontalStretchingStiffness"] = self.horizontalStretchingStiffness
-    updateStiffness(self, context, obj)
+    mod = obj.modifiers['ClothSimulation']
+    mod["Socket_18"] = self.horizontalStretchingStiffness
+    mod.node_group.interface_update(context)
     
 def updateBendingStiffness(self, context):
-    obj = context.active_object
-    obj["bendingStiffness"] = self.bendingStiffness
-    obj.modifiers["ClothSimulation"].settings.bending_stiffness = self.bendingStiffness * 15
+    context.active_object["bendingStiffness"] = self.bendingStiffness
     
 def updateShearingStiffness(self, context):
-    obj = context.active_object
-    obj["shearingStiffness"] = self.shearingStiffness
-    obj.modifiers["ClothSimulation"].settings.shear_stiffness = self.shearingStiffness * 15
+    context.active_object["shearingStiffness"] = self.shearingStiffness
     
 def updateTetherStiffness(self, context):
     context.active_object["tetherStiffness"] = self.tetherStiffness
@@ -291,12 +276,12 @@ def updateShearingStiffnessScaling_scale(self, context):
     
 def updateDamping(self, context):
     obj = context.active_object
-    settings = obj.modifiers["ClothSimulation"].settings
     obj["damping"] = self.damping
-    settings.tension_damping = self.damping
-    settings.compression_damping = self.damping
     if "drag" in obj and obj["drag"] > obj["damping"]:
         obj["drag"] = obj["damping"]
+    mod = obj.modifiers['ClothSimulation']
+    mod["Socket_16"] = self.damping
+    mod.node_group.interface_update(context)
     
 def updateStiffnessFrequency(self, context):
     context.active_object["stiffnessFrequency"] = self.stiffnessFrequency
@@ -306,51 +291,39 @@ def updateDrag(self, context):
     obj["drag"] = self.drag
     if obj["drag"] > obj["damping"]:
         obj["drag"] = obj["damping"]
-    obj.modifiers["ClothSimulation"].settings.effector_weights.drag = obj["drag"]
     
 def updateComDamping(self, context):
     context.active_object["comDamping"] = self.comDamping
     
 def updateFriction(self, context):
-    context.active_object["friction"] = self.friction
-    sphere_coll = GetCollection("Collision Spheres", make_active=False) 
-    connection_coll = GetCollection("Collision Connections", make_active=False) 
-    capsule_coll = GetCollection("Collision Capsules", make_active=False)
-    
-    objects = []
-    if sphere_coll:
-        objects.extend(sphere_coll.objects)
-    if connection_coll:
-        objects.extend(connection_coll.objects)
-    if capsule_coll:
-        objects.extend(capsule_coll.objects)
-    
-    for obj in objects:
-        obj.modifiers['Collision'].settings.cloth_friction = self.friction * 80
+    obj = context.active_object
+    obj["friction"] = self.friction
+    mod = obj.modifiers['ClothSimulation']
+    mod["Input_18"] = self.friction
+    mod.node_group.interface_update(context)
     
 def updateMassScale(self, context):
     context.active_object["massScale"] = self.massScale
     
 def updateSolverIterations(self, context):
-    obj = context.active_object
-    obj["solverIterations"] = self.solverIterations
-    obj.modifiers["ClothSimulation"].settings.quality = self.solverIterations
+    context.active_object["solverIterations"] = self.solverIterations
     
 def updateSolverFrequency(self, context):
-    context.active_object["solverFrequency"] = self.solverFrequency
+    obj = context.active_object
+    obj["solverFrequency"] = self.solverFrequency
+    mod = obj.modifiers['ClothSimulation']
+    mod["Socket_1"] = self.solverFrequency
+    mod.node_group.interface_update(context)
     
 def updateGravityScale(self, context):
     obj = context.active_object
     obj["gravityScale"] = self.gravityScale
-    obj.modifiers["ClothSimulation"].settings.effector_weights.gravity = self.gravityScale * -self.gravityDirection[2]
+    mod = obj.modifiers['ClothSimulation']
+    mod["Socket_9"] = self.gravityScale
+    mod.node_group.interface_update(context)
     
 def updateInertiaScale(self, context):
-    obj = context.active_object
-    obj["inertiaScale"] = self.inertiaScale
-    inertia = self.inertiaScale
-    if inertia < 0.1:
-        inertia = 0.1
-    obj.modifiers["ClothSimulation"].settings.air_damping = 1 / inertia
+    context.active_object["inertiaScale"] = self.inertiaScale
     
 def updateHardStretchLimitation(self, context):
     context.active_object["hardStretchLimitation"] = self.hardStretchLimitation
@@ -362,17 +335,13 @@ def updateHierarchicalSolverIterations(self, context):
     context.active_object["hierarchicalSolverIterations"] = self.hierarchicalSolverIterations
 
 def updateSelfCollisionThickness(self, context):
-    obj = context.active_object
-    obj["selfcollisionThickness"] = self.selfcollisionThickness
-    updateSelfCollision(self, context, obj)
+    context.active_object["selfcollisionThickness"] = self.selfcollisionThickness
 
 def updateSelfCollisionSquashScale(self, context):
     context.active_object["selfcollisionSquashScale"] = self.selfcollisionSquashScale
 
 def updateSelfCollisionStiffness(self, context):
-    obj = context.active_object
-    obj["selfcollisionStiffness"] = self.selfcollisionStiffness
-    updateSelfCollision(self, context, obj)
+    context.active_object["selfcollisionStiffness"] = self.selfcollisionStiffness
         
 PROPS_ClothMaterial_Panel = [
 ('verticalStretchingStiffness', FloatProperty(
@@ -385,7 +354,7 @@ PROPS_ClothMaterial_Panel = [
     )),
 ('horizontalStretchingStiffness', FloatProperty(
         name="Horizontal Stretching Stiffness",
-        description="Horizontal Stretching stiffness of the cloth in the range (0, 1]",
+        description="Horizontal Stretching stiffness of the cloth in the range [0, 1]",
         default=1,
         min=0,
         max=1,

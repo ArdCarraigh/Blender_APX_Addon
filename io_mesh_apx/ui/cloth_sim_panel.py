@@ -88,7 +88,9 @@ def updateThickness(self, context):
     main_coll["thickness"] = self.thickness
     arma = GetArmature()
     for obj in arma.children:
-        obj.modifiers["ClothSimulation"].collision_settings.distance_min = self.thickness
+        mod = obj.modifiers['ClothSimulation']
+        mod["Input_17"] = self.thickness
+        mod.node_group.interface_update(context)
         
 def updateVirtualParticleDensity(self, context):
     main_coll = GetCollection(make_active=False) 
@@ -99,7 +101,9 @@ def updateGravityDirection(self, context):
     main_coll["gravityDirection"] = self.gravityDirection
     arma = GetArmature()
     for obj in arma.children:
-        obj.modifiers["ClothSimulation"].settings.effector_weights.gravity = self.gravityScale * -self.gravityDirection[2]
+        mod = obj.modifiers['ClothSimulation']
+        mod["Input_15"] = np.array(self.gravityDirection, dtype=float)
+        mod.node_group.interface_update(context)
     
 def updateSleepLinearVelocity(self, context):
     main_coll = GetCollection(make_active=False) 
@@ -120,18 +124,39 @@ def updateTwoWayInteraction(self, context):
 def updateRestLengthScale(self, context):
     main_coll = GetCollection(make_active=False) 
     main_coll["restLengthScale"] = self.restLengthScale
+    arma = GetArmature()
+    for obj in arma.children:
+        mod = obj.modifiers['ClothSimulation']
+        mod["Socket_4"] = self.restLengthScale
+        mod.node_group.interface_update(context)
 
 def updateWindVelocity(self, context):
-    wind = GetWind()
-    wind.field.strength = self.windVelocity * 200
+    arma = GetArmature()
+    for obj in arma.children:
+        mod = obj.modifiers['ClothSimulation']
+        mod["Socket_5"] = self.windVelocity
+        mod.node_group.interface_update(context)
     
 def updateWindNoise(self, context):
-    wind = GetWind()
-    wind.field.noise = self.windNoise
+    arma = GetArmature()
+    for obj in arma.children:
+        mod = obj.modifiers['ClothSimulation']
+        mod["Socket_10"] = self.windNoise
+        mod.node_group.interface_update(context)
     
-def updateWindAngle(self, context):
-    wind = GetWind()
-    wind.rotation_euler = (0, np.radians(self.windElevation) ,np.radians(self.windDirection))
+def updateWindDirection(self, context):
+    arma = GetArmature()
+    for obj in arma.children:
+        mod = obj.modifiers['ClothSimulation']
+        mod["Socket_7"] = self.windDirection
+        mod.node_group.interface_update(context) 
+    
+def updateWindElevation(self, context):
+    arma = GetArmature()
+    for obj in arma.children:
+        mod = obj.modifiers['ClothSimulation']
+        mod["Socket_8"] = self.windElevation
+        mod.node_group.interface_update(context) 
     
 PROPS_ClothSimulation_Panel = [
 ('hierarchicalLevels', IntProperty(
@@ -200,7 +225,7 @@ PROPS_ClothSimulation_Panel = [
 ('windVelocity', FloatProperty(
         name="Wind Velocity",
         description="Strength of the wind effect",
-        default=10,
+        default=0,
         min=0,
         max=99,
         update=updateWindVelocity
@@ -216,18 +241,20 @@ PROPS_ClothSimulation_Panel = [
 ('windDirection', FloatProperty(
         name="Wind Direction",
         description="Direction of the wind effect",
-        default=90,
+        default=1.5708,
         min=0,
-        max=359,
-        update=updateWindAngle
+        max=6.26573,
+        subtype='ANGLE',
+        update=updateWindDirection
     )),
 ('windElevation', FloatProperty(
         name="Wind Elevation",
         description="Elevation of the wind effect",
-        default=90,
+        default=1.5708,
         min=0,
-        max=180,
-        update=updateWindAngle
+        max=3.14159,
+        subtype='ANGLE',
+        update=updateWindElevation
     ))
 ]
 
