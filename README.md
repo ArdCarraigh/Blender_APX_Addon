@@ -22,7 +22,8 @@
  
  ## Limitations
  
- - The addon leverages Blender's builtin simulations which are extremely far from PhysX simulation,
+ - Cloth real-time simulation performs decently on small meshes, but might not offer suitable performances on dense meshes. It also only has rest edge length constraints, implementing shearing, bending and tether constraints would worsen the performances even further,
+ - The addon leverages Blender's builtin simulations (for hair and destruction assets) which are extremely far from PhysX simulation,
  - Blender freezes when importing some destruction assets. For some reason it fails at separating a mesh by selected vertices sometimes,
  - Destruction assets import is incomplete and export is non-existent at the moment.
  
