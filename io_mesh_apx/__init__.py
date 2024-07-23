@@ -4,8 +4,8 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx/.apb)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (5, 5),
-    "blender": (4, 1, 1),
+    "version": (5, 6),
+    "blender": (4, 2, 0),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
     "doc_url": "https://github.com/ArdCarraigh/Blender_APX_Addon",
