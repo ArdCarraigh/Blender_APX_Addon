@@ -3,7 +3,7 @@
 ## Content of the addon
 
  Import/export .apx cloth, hair and destruction simulation files into/from blender.
- Developed for Blender 4.2.0, other versions are not tested.
+ Developed for Blender 4.3.2, other versions are not tested.
  
  The geometry nodes implementation of (X)PBD simulations is the work of [Lukas Tönne](https://github.com/lukas-toenne/node-assets). 
 

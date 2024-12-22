@@ -181,6 +181,11 @@ class PhysXMainPanel(bpy.types.Panel):
                     
                 if main_coll and obj and obj in arma.children and obj.type == 'MESH':
                     box_row = box.row()
+                    split = box_row.split(factor = 0.85, align = True)
+                    split.operator(PhysXBakeSimulation.bl_idname, text = "Bake Simulation")
+                    split.operator(PhysXDeleteBakedData.bl_idname, text = "", icon='TRASH')
+                    
+                    box_row = box.row()
                     box_row.enabled = bpy.context.screen.is_animation_playing
                     if wm.PhysXGrabMode:
                         icon = 'PAUSE'
@@ -193,13 +198,8 @@ class PhysXMainPanel(bpy.types.Panel):
                     if not bpy.context.screen.is_animation_playing:
                         wm.PhysXGrabMode = False
                         
-                    box_row = box.row()
-                    split = box_row.split(factor = 0.85, align = True)
-                    split.enabled = bpy.data.is_saved
-                    split.operator(PhysXBakeSimulation.bl_idname, text = "Bake Simulation")
-                    split.operator(PhysXDeleteBakedData.bl_idname, text = "", icon='TRASH')
-                    layout.separator()
-                
+                layout.separator()
+                    
             row = layout.row(align = True)
             row.alignment = "CENTER"
             row.scale_x = 1.44

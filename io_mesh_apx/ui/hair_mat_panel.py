@@ -2630,7 +2630,7 @@ PROPS_HairMaterial_Panel = [
     )),
 ('useShadows', BoolProperty(
         name="Use Shadows",
-        description="Enable/Disable the use of textures",
+        description="Enable/Disable the use of shadows",
         default=False,
         update=updateUseShadows
     )),

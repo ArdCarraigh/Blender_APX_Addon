@@ -111,48 +111,6 @@ def add_connection(context, objects, set_sim = False):
     connectionName = objName[0] + "_to_" + objName[1]
     assert(connectionName not in bpy.context.view_layer.active_layer_collection.collection.objects)
     
-    #for obj in objects:
-    #    selectOnly(obj)
-    #    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    #    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-    #    objCenter.append(deepcopy(obj.matrix_world.translation))
-    #    objRadius.append(np.linalg.norm(obj.data.vertices[0].co))
-    #    bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-    
-    #pos_2 = objCenter[1]
-    #pos_1 = objCenter[0]
-    #R2 = objRadius[1]
-    #R1 = objRadius[0]
-    
-    #AB = np.linalg.norm(pos_2-pos_1)
-    #BE = abs(R2-R1)
-    #AE = (AB**2 - (BE)**2)**.5
-    #AE_AB = AE/AB
-    #BE_AB = BE/AB
-    #cone_radius_1 = R1 * AE_AB
-    #cone_radius_2 = R2 * AE_AB
-    #AG = R1 * BE_AB
-    #BF = R2 * BE_AB
-    
-    #AB_dir = (pos_2-pos_1)/AB
-    #if R1 > R2:
-    #    cone_pos = pos_1 + AB_dir * AG
-    #else:
-    #    cone_pos = pos_1 - AB_dir * AG
-    
-    #cone_depth = AB - abs(AG-BF)
-    #cone_pos = cone_pos + AB_dir * cone_depth * 0.5 #cone pos is midpoint of centerline
-    #rotation = Vector([0,0,1]).rotation_difference(Vector(AB_dir)).to_euler("XYZ") ### may need to change
-    
-    #bpy.ops.mesh.primitive_cone_add(
-    #    vertices=24, 
-    #    radius1=cone_radius_1, 
-    #    radius2=cone_radius_2, 
-    #    depth=cone_depth, 
-    #    location=cone_pos, 
-    #    rotation=rotation, 
-    #    )
-    
     bpy.ops.mesh.primitive_uv_sphere_add()
     
     connection = bpy.context.active_object
@@ -313,8 +271,7 @@ def generateRagdoll(context, object):
     capsule_coll = GetCollection("Collision Capsules", True, False)
     while sphere_coll.objects:
         bpy.data.objects.remove(sphere_coll.objects[-1], do_unlink=True)
-    while connection_coll.objects:
-        bpy.data.objects.remove(connection_coll.objects[-1], do_unlink=True)
+    bpy.data.collections.remove(connection_coll, do_unlink=True)
     bpy.data.collections.remove(capsule_coll, do_unlink=True)
     arma_main = GetArmature()
     bones_main = arma_main.data.bones
@@ -329,6 +286,9 @@ def generateRagdoll(context, object):
     mesh.attributes['position'].data.foreach_get("vector", pos_array)
     pos_array = pos_array.reshape(-1, 3)
     vertex_groups = object.vertex_groups
+    
+    if len(bones) > 1:
+        connection_coll = GetCollection("Collision Connections", True, False)
     
     spheres = []
     for bone in bones:

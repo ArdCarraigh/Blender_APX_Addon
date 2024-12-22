@@ -124,6 +124,7 @@ class RemoveCollisionSphere(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        main_coll = GetCollection(make_active=True)
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
@@ -180,6 +181,7 @@ class RemoveCollisionSphereConnection(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        main_coll = GetCollection(make_active=True)
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
@@ -255,6 +257,7 @@ class RemoveCollisionCapsule(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        main_coll = GetCollection(make_active=True)
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
@@ -357,18 +360,25 @@ class PhysXCollisionPanel(bpy.types.Panel):
                 row = layout.row()
                 box = row.box()
                 box.label(text="General", icon='SETTINGS')
-                if n_spheres:
-                    box_row = box.row()
-                    box_row.prop(wm, "CollisionDisplayType", text = "Display As")
+                box_row = box.row()
+                box_row.enabled = n_spheres > 0
+                box_row.prop(wm, "CollisionDisplayType", text = "Display As")
                 box_row = box.row()
                 box_row.operator(GenerateRagdoll.bl_idname, text = "Generate Ragdoll")
-                if n_spheres:
-                    box_row = box.row()
-                    box_row.operator(MirrorRagdoll.bl_idname, text = "Mirror Ragdoll", icon = 'MOD_MIRROR')
+                box_row = box.row()
+                box_row.enabled = n_spheres > 0
+                box_row.operator(MirrorRagdoll.bl_idname, text = "Mirror Ragdoll", icon = 'MOD_MIRROR')
                     
                 row = layout.row()
                 box = row.box()
                 box.label(text="Collision Spheres", icon = 'MESH_UVSPHERE')
+                box_row = box.row()
+                col = box_row.column()
+                col.enabled = (n_spheres < 32 and main_coll["PhysXAssetType"] == "Clothing") or main_coll["PhysXAssetType"] == "Hairworks"
+                col.operator(AddCollisionSphere.bl_idname, text="Add")
+                col = box_row.column()
+                col.enabled = wm.PhysXCollisionSpheresIndex != -1
+                col.operator(RemoveCollisionSphere.bl_idname, text = "Remove")
                 if sphere_coll:
                     box.template_list("PHYSX_UL_spheres", "", sphere_coll, "objects", wm, "PhysXCollisionSpheresIndex", rows=3)
                     index_sphere = np.where(np.array(sphere_coll.objects) == bpy.context.active_object)[0]
@@ -377,43 +387,41 @@ class PhysXCollisionPanel(bpy.types.Panel):
                             wm.PhysXCollisionSpheresIndex = index_sphere[0]
                     else:
                         wm.PhysXCollisionSpheresIndex = -1
-                    
+                        
+                row = layout.row()
+                box = row.box()
+                box.label(text="Collision Connections", icon = 'MESH_CYLINDER')     
+                box_row = box.row(align=True)
+                box_row.enabled = (sphere_coll is not None and len(sphere_coll.objects) >= 2)
+                box_row.prop(wm, "collisionSphere1", text = "From")
+                box_row.prop(wm, "collisionSphere2", text = "To")
                 box_row = box.row()
                 col = box_row.column()
-                col.enabled = (n_spheres < 32 and main_coll["PhysXAssetType"] == "Clothing") or main_coll["PhysXAssetType"] == "Hairworks"
-                col.operator(AddCollisionSphere.bl_idname, text="Add")
+                col.enabled = wm.collisionSphere1 is not None and wm.collisionSphere2 is not None
+                col.operator(AddSphereConnection.bl_idname, text = "Add")
                 col = box_row.column()
-                col.enabled = wm.PhysXCollisionSpheresIndex != -1
-                col.operator(RemoveCollisionSphere.bl_idname, text = "Remove")
-                
-                if sphere_coll and len(sphere_coll.objects) >= 2:
-                    row = layout.row()
-                    box = row.box()
-                    box.label(text="Collision Connections", icon = 'MESH_CYLINDER')    
-                    if connection_coll:
-                        box.template_list("PHYSX_UL_connections", "", connection_coll, "objects", wm, "PhysXCollisionSpheresConnectionsIndex", rows=3)
-                        index_connection = np.where(np.array(connection_coll.objects) == bpy.context.active_object)[0]
-                        if index_connection.size:
-                            if wm.PhysXCollisionSpheresConnectionsIndex != index_connection[0]:
-                                wm.PhysXCollisionSpheresConnectionsIndex = index_connection[0]
-                        else:
-                            wm.PhysXCollisionSpheresConnectionsIndex = -1
-                            
-                    box_row = box.row(align=True)
-                    box_row.prop(wm, "collisionSphere1", text = "From")
-                    box_row.prop(wm, "collisionSphere2", text = "To")
-                    box_row = box.row()
-                    col = box_row.column()
-                    col.enabled = wm.collisionSphere1 is not None and wm.collisionSphere2 is not None
-                    col.operator(AddSphereConnection.bl_idname, text = "Add")
-                    col = box_row.column()
-                    col.enabled = wm.PhysXCollisionSpheresConnectionsIndex != -1
-                    col.operator(RemoveCollisionSphereConnection.bl_idname, text = "Remove")
+                col.enabled = wm.PhysXCollisionSpheresConnectionsIndex != -1
+                col.operator(RemoveCollisionSphereConnection.bl_idname, text = "Remove")
+                if connection_coll:
+                    box.template_list("PHYSX_UL_connections", "", connection_coll, "objects", wm, "PhysXCollisionSpheresConnectionsIndex", rows=3)
+                    index_connection = np.where(np.array(connection_coll.objects) == bpy.context.active_object)[0]
+                    if index_connection.size:
+                        if wm.PhysXCollisionSpheresConnectionsIndex != index_connection[0]:
+                            wm.PhysXCollisionSpheresConnectionsIndex = index_connection[0]
+                    else:
+                        wm.PhysXCollisionSpheresConnectionsIndex = -1
                     
                 if main_coll["PhysXAssetType"] == "Clothing":
                     row = layout.row()
                     box = row.box()
                     box.label(text="Collision Capsules", icon = 'MESH_CAPSULE')
+                    box_row = box.row()
+                    col = box_row.column()
+                    col.enabled = n_spheres < 31
+                    col.operator(AddCollisionCapsule.bl_idname, text="Add")
+                    col = box_row.column()
+                    col.enabled = wm.PhysXCollisionCapsulesIndex != -1
+                    col.operator(RemoveCollisionCapsule.bl_idname, text = "Remove")
                     if capsule_coll:
                         box.template_list("PHYSX_UL_capsules", "", capsule_coll, "objects", wm, "PhysXCollisionCapsulesIndex", rows=3)
                         index_capsule = np.where(np.array(capsule_coll.objects) == bpy.context.active_object)[0]
@@ -423,20 +431,12 @@ class PhysXCollisionPanel(bpy.types.Panel):
                         else:
                             wm.PhysXCollisionCapsulesIndex = -1
                         
-                    box_row = box.row()
-                    col = box_row.column()
-                    col.enabled = n_spheres < 31
-                    col.operator(AddCollisionCapsule.bl_idname, text="Add")
-                    col = box_row.column()
-                    col.enabled = wm.PhysXCollisionCapsulesIndex != -1
-                    col.operator(RemoveCollisionCapsule.bl_idname, text = "Remove")
-                    
-                    if capsule_coll:
-                        if wm.PhysXCollisionCapsulesIndex != -1:
-                            box_row = box.row()
-                            box_row.prop(wm, "capsuleRadius", text = "Radius")
-                            box_row = box.row()
-                            box_row.prop(wm, "capsuleHeight", text = "Height")
+                        box_row = box.row()
+                        box_row.enabled = wm.PhysXCollisionCapsulesIndex != -1
+                        box_row.prop(wm, "capsuleRadius", text = "Radius")
+                        box_row = box.row()
+                        box_row.enabled = wm.PhysXCollisionCapsulesIndex != -1
+                        box_row.prop(wm, "capsuleHeight", text = "Height")
                         
                         box_row = box.row()
                         box_row.operator(ConvertCapsuleToSphere.bl_idname, text = "Convert Capsules")
