@@ -9,7 +9,7 @@ from copy import deepcopy
 from mathutils import Matrix, Vector
 from io_mesh_apx.exporter.template_clothing import *
 from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, apply_drive
-from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray
+from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray, deleteIsolatedVertices
     
 def write_clothing(context, filepath):
     kwargs = {}
@@ -122,6 +122,7 @@ def write_clothing(context, filepath):
         duplicate_obj.name = "tempGraphicalMesh"
         applyTransforms(duplicate_obj, armaScale, armaRot, armaLoc)
         TriangulateActiveMesh()
+        deleteIsolatedVertices(duplicate_obj)
         apply_drive(duplicate_obj, 1, False)
         
         # Export Physical Mesh
@@ -136,9 +137,6 @@ def write_clothing(context, filepath):
             physics_mesh.attributes.new(".select_vert", "BOOLEAN", "POINT")
         physics_mesh.attributes[".select_vert"].data.foreach_set("value", drive_bool_array)
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.delete(type='VERT')
-        bpy.ops.mesh.select_face_by_sides(number=3, type='EQUAL', extend=False)
-        bpy.ops.mesh.select_all(action='INVERT')
         bpy.ops.mesh.delete(type='VERT')
         bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.remove_doubles()
@@ -356,16 +354,19 @@ def write_clothing(context, filepath):
                 
                 # Get Vertex Color
                 for layer in mesh.color_attributes:
-                    if not re.search('MaximumDistance|BackstopRadius|BackstopDistance|Drive|Latch', layer.name):
-                        vcol = np.zeros(n_vertices * 4)
-                        layer.data.foreach_get("color", vcol)
-                        # Write Vertex Color Buffer
-                        kwargs_vcol = {}
-                        kwargs_vcol['numData'] = len(vcol)
-                        kwargs_vcol['arrayData'] = ','.join([' '.join(map(str, map(int, x))) for x in (vcol * 255).reshape(-1,4)])
-                        bufferData.append(templateDataColor.format(**kwargs_vcol))
-                        bufferFormats.append(templateVertexColorBuffer)
-                        break
+                    if layer.domain == 'CORNER':
+                        mesh.color_attributes.active_color = layer
+                        bpy.ops.geometry.color_attribute_convert(domain='POINT', data_type='FLOAT_COLOR')
+                        layer = mesh.color_attributes.active_color
+                    vcol = np.zeros(n_vertices * 4)
+                    layer.data.foreach_get("color", vcol)
+                    # Write Vertex Color Buffer
+                    kwargs_vcol = {}
+                    kwargs_vcol['numData'] = len(vcol)
+                    kwargs_vcol['arrayData'] = ','.join([' '.join(map(str, map(int, x))) for x in (vcol * 255).reshape(-1,4)])
+                    bufferData.append(templateDataColor.format(**kwargs_vcol))
+                    bufferFormats.append(templateVertexColorBuffer)
+                    break
                     
                 # Get UV Maps
                 semantic = 5

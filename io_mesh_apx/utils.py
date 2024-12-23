@@ -587,3 +587,22 @@ def getNumberHairVerts():
     if "PhysXAssetType" in main_coll and main_coll["PhysXAssetType"] == 'Hairworks':
         nverts = len(GetArmature().children[0].modifiers['Hairworks'].particle_system.particles[0].hair_keys)
     return nverts
+
+def deleteIsolatedVertices(obj):
+    mesh = obj.data
+    n_faces = len(mesh.polygons)
+    n_vertices = len(mesh.vertices)
+    valid_verts = np.zeros(n_faces*3, dtype='int')
+    mesh.polygons.foreach_get("vertices", valid_verts)
+    valid_verts = list(set(valid_verts))
+    select_array = np.zeros(n_vertices, dtype=bool)
+    mesh.vertices.foreach_set("hide", select_array)
+    for i in range(n_vertices):
+        select_array[i] = (i not in valid_verts)
+    if ".select_vert" not in mesh.attributes:
+        mesh.attributes.new(".select_vert", "BOOLEAN", "POINT")
+    mesh.attributes[".select_vert"].data.foreach_set("value", select_array)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.delete(type='VERT')
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode='OBJECT')

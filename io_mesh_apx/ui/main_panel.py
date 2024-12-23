@@ -84,13 +84,13 @@ class PhysXModalGrab(Operator):
                 self.execute(context)
                 
         elif event.type == 'LEFTMOUSE':  # Select Vertex
-            if self.active:
+            if event.value == 'RELEASE' and self.active:
                 self.active = False
                 self.vert_id = 0
                 self.vert_pos = [0,0,0]
                 self.depth = [0,0,0]
                 self.execute(context)
-            else:
+            elif event.value == 'PRESS' and not event.is_repeat:
                 self.active = True
                 obj = ob.evaluated_get(bpy.context.evaluated_depsgraph_get())
                 vert_poses_3D = np.zeros(len(obj.data.vertices) * 3)
@@ -178,25 +178,26 @@ class PhysXMainPanel(bpy.types.Panel):
                 box.label(text = "Simulation", icon='SETTINGS')
                 box_row = box.row()
                 box_row.prop(wm, "PhysXSimFPS", text="Frames per second")
-                    
-                if main_coll and obj and obj in arma.children and obj.type == 'MESH':
-                    box_row = box.row()
-                    split = box_row.split(factor = 0.85, align = True)
-                    split.operator(PhysXBakeSimulation.bl_idname, text = "Bake Simulation")
-                    split.operator(PhysXDeleteBakedData.bl_idname, text = "", icon='TRASH')
-                    
-                    box_row = box.row()
-                    box_row.enabled = bpy.context.screen.is_animation_playing
-                    if wm.PhysXGrabMode:
-                        icon = 'PAUSE'
-                        txt = 'Ongoing'
-                    else:
-                        icon = "PLAY"
-                        txt = 'Enable Grab Mode'
-                    #box_row.prop(wm, 'PhysXGrabMode', toggle=True, text = txt, icon=icon)
-                    box_row.operator(PhysXModalGrab.bl_idname, text = txt, icon = icon)
-                    if not bpy.context.screen.is_animation_playing:
-                        wm.PhysXGrabMode = False
+                
+                check_mesh =  (main_coll is not None and obj is not None and obj in arma.children and obj.type == 'MESH')
+                box_row = box.row()
+                box_row.enabled = check_mesh
+                split = box_row.split(factor = 0.85, align = True)
+                split.operator(PhysXBakeSimulation.bl_idname, text = "Bake Simulation")
+                split.operator(PhysXDeleteBakedData.bl_idname, text = "", icon='TRASH')
+                
+                box_row = box.row()
+                box_row.enabled = check_mesh and bpy.context.screen.is_animation_playing
+                box_row.alert = wm.PhysXGrabMode
+                if wm.PhysXGrabMode:
+                    icon = 'PAUSE'
+                    txt = 'Ongoing'
+                else:
+                    icon = "PLAY"
+                    txt = 'Enable Grab Mode'
+                box_row.operator(PhysXModalGrab.bl_idname, text = txt, icon = icon)
+                if not bpy.context.screen.is_animation_playing:
+                    wm.PhysXGrabMode = False
                         
                 layout.separator()
                     
@@ -225,7 +226,7 @@ def updatePhysXSimFPS(self, context):
         if 'ClothSimulation' in obj.modifiers:
             mod = obj.modifiers['ClothSimulation']
             mod['Socket_15'] = self.PhysXSimFPS
-            mod.node_group.interface_update(context) 
+            mod.node_group.interface_update(context)
             
 PROPS_Main_Panel = [
 ('PhysXSubPanel', EnumProperty(

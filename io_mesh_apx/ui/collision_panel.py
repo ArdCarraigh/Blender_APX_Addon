@@ -33,7 +33,6 @@ class GenerateRagdoll(Operator):
     
     def invoke(self, context, event):
         context.window_manager.invoke_search_popup(self)
-        #context.window_manager.invoke_confirm(self, event)
         return {'RUNNING_MODAL'}
         
     
@@ -361,13 +360,13 @@ class PhysXCollisionPanel(bpy.types.Panel):
                 box = row.box()
                 box.label(text="General", icon='SETTINGS')
                 box_row = box.row()
-                box_row.enabled = n_spheres > 0
-                box_row.prop(wm, "CollisionDisplayType", text = "Display As")
-                box_row = box.row()
                 box_row.operator(GenerateRagdoll.bl_idname, text = "Generate Ragdoll")
                 box_row = box.row()
                 box_row.enabled = n_spheres > 0
                 box_row.operator(MirrorRagdoll.bl_idname, text = "Mirror Ragdoll", icon = 'MOD_MIRROR')
+                box_row = box.row()
+                box_row.enabled = n_spheres > 0
+                box_row.prop(wm, "CollisionDisplayType", text = "Display As")
                     
                 row = layout.row()
                 box = row.box()
@@ -387,6 +386,10 @@ class PhysXCollisionPanel(bpy.types.Panel):
                             wm.PhysXCollisionSpheresIndex = index_sphere[0]
                     else:
                         wm.PhysXCollisionSpheresIndex = -1
+                        
+                    box_row = box.row()
+                    box_row.enabled = wm.PhysXCollisionSpheresIndex != -1
+                    box_row.prop(wm, "sphereRadius", text = "Radius")
                         
                 row = layout.row()
                 box = row.box()
@@ -485,6 +488,13 @@ def pollCollisionSphere2(self, object):
     collision_coll = GetCollection("Collision Spheres", make_active=False)    
     return collision_coll == object.users_collection[0] and object != self.collisionSphere1
 
+def updateSphereRadius(self, context):
+    sphere = context.active_object
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+    Radius = np.linalg.norm(sphere.data.vertices[0].co)
+    sphere.scale = [self.sphereRadius / Radius] * 3
+
 def updateCapsuleRadius(self, context):
     arma = GetArmature()
     capsules = GetCollection("Collision Capsules", make_active=False).objects
@@ -579,6 +589,11 @@ PROPS_Collision_Panel = [
         poll = pollCollisionSphere2,
         name="Collision Sphere 2",
         description="Set the second collision sphere to connect"
+    )),
+("sphereRadius", FloatProperty(
+        name = "Collision Sphere Radius",
+        update = updateSphereRadius,
+        min = 0.01
     )),
 ("capsuleRadius", FloatProperty(
         name = "Collision Capsule Radius",

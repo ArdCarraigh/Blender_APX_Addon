@@ -103,8 +103,14 @@ class PhysXHairPinPanel(bpy.types.Panel):
             main_coll = GetCollection(make_active=False)
             if main_coll:
                     
-                pin_coll = GetCollection("Pin Constraints", make_active=False)    
-                    
+                pin_coll = GetCollection("Pin Constraints", make_active=False)
+                
+                row = layout.row()
+                col = row.column()
+                col.operator(AddPinSphere.bl_idname, text="Add")
+                col = row.column()
+                col.enabled = wm.PhysXPinSpheresIndex != -1
+                col.operator(RemovePinSphere.bl_idname, text = "Remove")    
                 row = layout.row()
                 if pin_coll:
                     row.template_list("PHYSX_UL_pins", "", pin_coll, "objects", wm, "PhysXPinSpheresIndex", rows=3)
@@ -114,37 +120,38 @@ class PhysXHairPinPanel(bpy.types.Panel):
                             wm.PhysXPinSpheresIndex = index_sphere[0]
                     else:
                         wm.PhysXPinSpheresIndex = -1
-                    
-                row = layout.row()
-                col = row.column()
-                col.operator(AddPinSphere.bl_idname, text="Add")
-                col = row.column()
-                col.enabled = wm.PhysXPinSpheresIndex != -1
-                col.operator(RemovePinSphere.bl_idname, text = "Remove")
+                        
+                    row = layout.row()
+                    row.enabled = wm.PhysXPinSpheresIndex != -1
+                    row.prop(wm, "pinRadius", text = "Radius")
                 
-                if pin_coll and wm.PhysXPinSpheresIndex != -1:
                     obj = pin_coll.objects[wm.PhysXPinSpheresIndex]
                     row = layout.row()
+                    row.enabled = wm.PhysXPinSpheresIndex != -1
                     row.prop(wm, "doLra", text = "doLra")
                     if wm.doLra != obj["doLra"]:
                         wm.doLra = obj["doLra"]
                     
                     row = layout.row()
+                    row.enabled = wm.PhysXPinSpheresIndex != -1
                     row.prop(wm, "useDynamicPin1", text = "Dynamic Pin")
                     if wm.useDynamicPin1 != obj["useDynamicPin1"]:
                         wm.useDynamicPin1 = obj["useDynamicPin1"]
                     
                     row = layout.row()
+                    row.enabled = wm.PhysXPinSpheresIndex != -1
                     row.prop(wm, "useStiffnessPin", text = "Tether Pin")
                     if wm.useStiffnessPin != obj["useStiffnessPin"]:
                         wm.useStiffnessPin = obj["useStiffnessPin"]
                         
                     row = layout.row()
+                    row.enabled = wm.PhysXPinSpheresIndex != -1
                     row.prop(wm, "pinStiffness1", text = "Stiffness")
                     if wm.pinStiffness1 != obj["pinStiffness1"]:
                         wm.pinStiffness1 = obj["pinStiffness1"]
                         
                     row = layout.row()
+                    row.enabled = wm.PhysXPinSpheresIndex != -1
                     split = row.split(factor = 0.85, align = True)
                     split.prop(wm, "influenceFallOff", text = "Influence Fall Off")
                     if wm.influenceFallOff != obj["influenceFallOff"]:
@@ -152,6 +159,7 @@ class PhysXHairPinPanel(bpy.types.Panel):
                     split.prop(wm, "influenceFallOffCurveToggle", text = "", toggle = True, icon = "FCURVE")
                     if wm.influenceFallOffCurveToggle:
                         row = layout.row()
+                        row.enabled = wm.PhysXPinSpheresIndex != -1
                         row.prop(wm, "influenceFallOffCurve", text = "")
                         if not all(np.array(wm.influenceFallOffCurve) == np.array(obj["influenceFallOffCurve"])):
                             wm.influenceFallOffCurve = obj["influenceFallOffCurve"]
@@ -190,6 +198,12 @@ def updateInfluenceFallOffCurve(self, context):
         point.location[1] = self.influenceFallOffCurve[i]
     mapping.update()
     
+def updatePinRadius(self, context):
+    pin = context.active_object
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+    Radius = np.linalg.norm(pin.data.vertices[0].co)
+    pin.scale = [self.pinRadius / Radius] * 3
     
 PROPS_HairPin_Panel = [
 ("PhysXPinSpheresIndex", IntProperty(
@@ -241,6 +255,11 @@ PROPS_HairPin_Panel = [
         default = (0,0,0,0),
         min = -0.2,
         max = 1.2
+    )),
+("pinRadius", FloatProperty(
+        name = "Hair Pin Radius",
+        update = updatePinRadius,
+        min = 0.01
     ))
 ]
 
