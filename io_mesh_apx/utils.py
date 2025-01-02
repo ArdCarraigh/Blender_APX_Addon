@@ -606,3 +606,11 @@ def deleteIsolatedVertices(obj):
     bpy.ops.mesh.delete(type='VERT')
     bpy.ops.mesh.select_all(action="DESELECT")
     bpy.ops.object.mode_set(mode='OBJECT')
+    
+def getPhysXAssets(self, context):
+    main_coll = GetCollection(make_active=False)
+    colls = []
+    for coll in bpy.data.collections:
+        if coll != main_coll and "PhysXAssetType" in coll and (coll['PhysXAssetType'] == 'Clothing' or coll['PhysXAssetType'] == 'Hairworks'):
+            colls.append((coll.name, coll.name, ""))
+    return colls

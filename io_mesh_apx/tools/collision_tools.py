@@ -394,3 +394,57 @@ def mirrorRagdoll(context, pattern, replacement, axis):
                             capsuleRotation[1] = capsuleRotation[1] + 2 * (2 * np.pi - capsuleRotation[1])
                             capsuleRotation[0] = capsuleRotation[0] + 2 * (2 * np.pi - capsuleRotation[0])
                     add_capsule(context, new_name, sphereRadius, capsuleHeight, capsulePosition, capsuleRotation, True)
+                    
+def lexarRagdoll(context, collection):
+    main_coll = GetCollection(make_active = False)
+    bones = GetArmature().data.bones
+    asset = bpy.data.collections[collection]
+    check_sphere = False
+    if asset.children:
+        for coll in asset.children:
+            if "Collision Spheres" in coll.name and coll.objects:
+                check_sphere = True
+                sphere_coll = GetCollection("Collision Spheres", True, False)
+                spheres = coll.objects
+                sphere_bone_names = [x.name[x.name.find("_")+1:x.name.rfind("_")] for x in spheres]
+                old_spheres = {}
+                new_spheres = {}
+                for i, obj in enumerate(spheres):
+                    old_spheres[obj.name] = i
+                    if sphere_bone_names[i] in bones:
+                        selectOnly(obj)
+                        bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
+                        obj_dup = bpy.context.active_object
+                        new_spheres[i] = obj_dup
+                        sphere_coll.objects.link(obj_dup)
+                        for col in obj_dup.users_collection:
+                            if col != sphere_coll:
+                                col.objects.unlink(obj_dup)
+                        
+            if "Collision Connections" in coll.name and coll.objects and check_sphere:
+                connection_coll = GetCollection("Collision Connections", True, False)
+                for obj in coll.objects:
+                    x = obj.name
+                    sphereName1 = x[:x.find("_to_")]
+                    boneName1 = sphereName1[sphereName1.find("_")+1:sphereName1.rfind("_")]
+                    sphereName2 = x[x.find("_to_")+4:]
+                    boneName2 = sphereName2[sphereName2.find("_")+1:sphereName2.rfind("_")]
+                    if boneName1 in bones and boneName2 in bones:
+                        add_connection(context, [new_spheres[old_spheres[sphereName1]], new_spheres[old_spheres[sphereName2]]], False)
+                                
+            if "PhysXAssetType" in main_coll and main_coll['PhysXAssetType'] == 'Clothing':         
+                if "Collision Capsules" in coll.name and coll.objects:
+                    capsule_coll = GetCollection("Collision Capsules", True, False)
+                    capsules = coll.objects
+                    capsule_bone_names = [x.name[x.name.find("_")+1:x.name.rfind("_")] for x in capsules]
+                    for i, obj in enumerate(capsules):
+                        if capsule_bone_names[i] in bones:
+                            selectOnly(obj)
+                            bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
+                            obj_dup = bpy.context.active_object
+                            capsule_coll.objects.link(obj_dup)
+                            for col in obj_dup.users_collection:
+                                if col != capsule_coll:
+                                    col.objects.unlink(obj_dup)
+    
+    

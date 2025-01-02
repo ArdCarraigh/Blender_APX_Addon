@@ -330,3 +330,9 @@ def haircard_curve(context, hair_mesh, uv_orientation = "-Y", tolerance = 0.05):
         curve.location = meshLoc
         
     bpy.data.collections.remove(coll_temp)
+
+def hair_to_haircard(context, obj, cap = False, width = 0.05, width_relative = False):
+    bpy.context.scene.collection
+    context.scene.frame_set(0)
+    # Get the growthmesh
+    growthMesh = obj.evaluated_get(context.evaluated_depsgraph_get())

@@ -7,8 +7,8 @@ from copy import deepcopy
 from mathutils import Vector
 from bpy.props import FloatProperty, FloatVectorProperty, IntProperty, PointerProperty, BoolProperty, EnumProperty, StringProperty
 from bpy.types import Operator
-from io_mesh_apx.tools.collision_tools import add_sphere, remove_sphere, add_connection, remove_connection, add_capsule, remove_capsule, convert_capsule, generateRagdoll, mirrorRagdoll
-from io_mesh_apx.utils import GetCollection, selectOnly, GetArmature, getRiggedObjects, getBones
+from io_mesh_apx.tools.collision_tools import add_sphere, remove_sphere, add_connection, remove_connection, add_capsule, remove_capsule, convert_capsule, generateRagdoll, mirrorRagdoll, lexarRagdoll
+from io_mesh_apx.utils import GetCollection, selectOnly, GetArmature, getRiggedObjects, getBones, getPhysXAssets
 
 class GenerateRagdoll(Operator):
     """Generate a Ragdoll !!!Keep in mind PhysX only supports 31 collision spheres!!!"""
@@ -35,6 +35,30 @@ class GenerateRagdoll(Operator):
         context.window_manager.invoke_search_popup(self)
         return {'RUNNING_MODAL'}
         
+class LexarRagdoll(Operator):
+    """Steal a Ragdoll from another PhysX asset"""
+    bl_idname = "physx.lexar_ragdoll"
+    bl_label = "Steal a Ragdoll from another PhysX asset"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "collection"
+    
+    collection: EnumProperty(
+        options={'HIDDEN'},
+        name="PhysX Assets",
+        items=getPhysXAssets
+    )
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        lexarRagdoll(context, self.collection)
+        return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
     
 class MirrorRagdoll(Operator):
     """Mirror collision objects according to string pattern in bone names"""
@@ -362,6 +386,8 @@ class PhysXCollisionPanel(bpy.types.Panel):
                 box_row = box.row()
                 box_row.operator(GenerateRagdoll.bl_idname, text = "Generate Ragdoll")
                 box_row = box.row()
+                box_row.operator(LexarRagdoll.bl_idname, text = "Lexar Ragdoll")
+                box_row = box.row()
                 box_row.enabled = n_spheres > 0
                 box_row.operator(MirrorRagdoll.bl_idname, text = "Mirror Ragdoll", icon = 'MOD_MIRROR')
                 box_row = box.row()
@@ -607,4 +633,4 @@ PROPS_Collision_Panel = [
     ))
 ]
 
-CLASSES_Collision_Panel = [GenerateRagdoll, MirrorRagdoll, AddCollisionSphere, RemoveCollisionSphere, AddSphereConnection, AddSphereConnectionKey, RemoveCollisionSphereConnection, AddCollisionCapsule, RemoveCollisionCapsule, ConvertCapsuleToSphere, PHYSX_UL_spheres, PHYSX_UL_connections, PHYSX_UL_capsules, PhysXCollisionPanel]
+CLASSES_Collision_Panel = [GenerateRagdoll, LexarRagdoll, MirrorRagdoll, AddCollisionSphere, RemoveCollisionSphere, AddSphereConnection, AddSphereConnectionKey, RemoveCollisionSphereConnection, AddCollisionCapsule, RemoveCollisionCapsule, ConvertCapsuleToSphere, PHYSX_UL_spheres, PHYSX_UL_connections, PHYSX_UL_capsules, PhysXCollisionPanel]

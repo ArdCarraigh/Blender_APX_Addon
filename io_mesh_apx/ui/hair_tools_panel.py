@@ -3,10 +3,10 @@
 
 import bpy
 import re
-from bpy.props import EnumProperty, FloatProperty, IntProperty
+from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty
 from bpy.types import Operator
 from io_mesh_apx.utils import GetCollection, GetArmature, getCurvesCollections, getObjects
-from io_mesh_apx.tools.hair_tools import shape_hair_interp, create_curve, haircard_curve
+from io_mesh_apx.tools.hair_tools import shape_hair_interp, create_curve, haircard_curve, hair_to_haircard
 
 class ShapeHairInterp(Operator):
     """Shape Hair from Curves"""
@@ -109,6 +109,37 @@ class HaircardCurve(Operator):
         context.window_manager.invoke_search_popup(self)
         return {'RUNNING_MODAL'}
     
+class HairToHaircard(Operator):
+    """Create Haircard Mesh from Hair"""
+    bl_idname = "physx.hair_to_haircard"
+    bl_label = "Create Haircard Mesh from Hair"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    cap: BoolProperty(
+        name="Enable/Disable Cap",
+        default = False,
+        description="Make a cap as base for the haircard mesh"
+    )
+    width: FloatProperty(
+        name="Hair Card Width",
+        default = 0.05,
+        min = 0,
+        description="Set the maximum width of the haircard"
+    )
+    width_relative: BoolProperty(
+        name="Enable/Disable Relative Width",
+        default=False,
+        description="Make the width relative to the length of the hair"
+    )
+
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        hair_to_haircard(context, GetArmature().children[0], self.cap, self.width, self.width_relative)
+        return {'FINISHED'}
+    
 class PhysXHairToolsPanel(bpy.types.Panel):
     bl_idname = 'VIEW3D_PT_PhysX_hair_tools_panel'
     bl_parent_id = 'VIEW3D_PT_PhysX_panel'
@@ -134,7 +165,10 @@ class PhysXHairToolsPanel(bpy.types.Panel):
                 row.operator(ShapeHairInterp.bl_idname, text = "Convert Curves to Hair")
                 
                 row = layout.row()
-                row.operator(HaircardCurve.bl_idname, text = "Convert Hair Cards to Curves ")
+                row.operator(HaircardCurve.bl_idname, text = "Convert Hair Cards to Curves")
+                
+                #row = layout.row()
+                #row.operator(HairToHaircard.bl_idname, text = "Convert Hair to Hair Cards")
             
         return
         
@@ -142,4 +176,4 @@ PROPS_HairTools_Panel = [
 
 ]
 
-CLASSES_HairTools_Panel = [ShapeHairInterp, CreateCurve, HaircardCurve, PhysXHairToolsPanel]
+CLASSES_HairTools_Panel = [ShapeHairInterp, CreateCurve, HaircardCurve, HairToHaircard, PhysXHairToolsPanel]
