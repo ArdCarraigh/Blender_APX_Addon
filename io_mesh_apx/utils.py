@@ -12,6 +12,7 @@ from bpy_extras.object_utils import object_data_add
 import gpu
 from gpu_extras.batch import batch_for_shader
 from itertools import chain
+from io_mesh_apx.templates.template_collision_sphere import *
 
 def find_elem(root, tag, attr=None, attr_value=None):
     for elem in root:
@@ -614,3 +615,18 @@ def getPhysXAssets(self, context):
         if coll != main_coll and "PhysXAssetType" in coll and (coll['PhysXAssetType'] == 'Clothing' or coll['PhysXAssetType'] == 'Hairworks'):
             colls.append((coll.name, coll.name, ""))
     return colls
+
+def addOptimisedCollisionSphere(radius = 1, location = (0,0,0), rotation = (0,0,0), half = False):
+    verts = np.array(templateSphereVertices)
+    verts *= radius
+    faces = templateSphereFaces
+    if half:
+        verts = verts[0:57]
+        faces = faces[0:48]
+    mesh = bpy.data.meshes.new(name="OptimisedSphere")
+    mesh.from_pydata(verts, [], faces)
+    obj = object_data_add(bpy.context, mesh)
+    mesh.shade_smooth()
+    obj.location = location
+    obj.rotation_euler = rotation
+    return obj

@@ -7,7 +7,7 @@ import numpy as np
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector
 from copy import deepcopy
-from io_mesh_apx.utils import JoinThem, applyTransforms, selectOnly, GetCollection, ImportTemplates, GetArmature, getWeightArray
+from io_mesh_apx.utils import JoinThem, applyTransforms, selectOnly, GetCollection, ImportTemplates, GetArmature, getWeightArray, addOptimisedCollisionSphere
 
 def add_sphere(context, bone, radius, location, use_location, set_sim = False):
     collision_coll = GetCollection("Collision Spheres", True)
@@ -39,8 +39,7 @@ def add_sphere(context, bone, radius, location, use_location, set_sim = False):
         
     radius = np.array(radius) / boneScale[0]
     
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=location, segments=24, ring_count=16)
-    sphere = bpy.context.active_object
+    sphere = addOptimisedCollisionSphere(radius=radius, location=location)
     
     num = 1
     sphere_temp_name = "sphere_" + bone.name + "_"
@@ -180,20 +179,20 @@ def add_capsule(context, bone, radius, height, location, rotation, use_location,
     meshes = []
     half_height = height/2
     rot90 = (-np.pi/2,0,0)
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=(0,half_height,0), segments=24, ring_count=16, rotation = rot90)
+    obj = addOptimisedCollisionSphere(radius=radius, location=(0,half_height,0), rotation = (np.pi/2,0,0), half = True)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    bpy.context.active_object.data.materials.append(bpy.data.materials["Material_Sphere1"])
-    meshes.append(bpy.context.active_object)
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=(0,-half_height,0), segments=24, ring_count=16, rotation = rot90)
-    bpy.context.active_object.data.materials.append(bpy.data.materials["Material_Sphere2"])
-    meshes.append(bpy.context.active_object)
-    bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=radius, radius2=radius, depth=height, rotation = rot90)
+    obj.data.materials.append(bpy.data.materials["Material_Sphere1"])
+    meshes.append(obj)
+    obj = addOptimisedCollisionSphere(radius=radius, location=(0,-half_height,0), rotation = (-np.pi/2,0,0), half = True)
+    obj.data.materials.append(bpy.data.materials["Material_Sphere2"])
+    meshes.append(obj)
+    bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=radius, radius2=radius, depth=height, rotation = rot90, end_fill_type="NOTHING")
     bpy.context.active_object.data.materials.append(bpy.data.materials["Material_Cylinder"])
     meshes.append(bpy.context.active_object)
     JoinThem(meshes)
     capsule = bpy.context.active_object
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    bpy.ops.mesh.remove_doubles()
+    bpy.ops.mesh.remove_doubles(threshold=0.01)
     bpy.ops.transform.translate(value=location)
     bpy.ops.transform.rotate(value = rotation[0], orient_axis='X', constraint_axis=(True, False, False))
     bpy.ops.transform.rotate(value = rotation[1], orient_axis='Y', constraint_axis=(False, True, False))
