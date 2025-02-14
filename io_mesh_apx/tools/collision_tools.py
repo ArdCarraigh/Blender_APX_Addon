@@ -183,7 +183,7 @@ def add_capsule(context, bone, radius, height, location, rotation, use_location,
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     obj.data.materials.append(bpy.data.materials["Material_Sphere1"])
     meshes.append(obj)
-    obj = addOptimisedCollisionSphere(radius=radius, location=(0,-half_height,0), rotation = (-np.pi/2,0,0), half = True)
+    obj = addOptimisedCollisionSphere(radius=radius, location=(0,-half_height,0), rotation = rot90, half = True)
     obj.data.materials.append(bpy.data.materials["Material_Sphere2"])
     meshes.append(obj)
     bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=radius, radius2=radius, depth=height, rotation = rot90, end_fill_type="NOTHING")

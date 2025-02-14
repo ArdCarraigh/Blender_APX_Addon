@@ -139,7 +139,7 @@ def write_clothing(context, filepath):
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.delete(type='VERT')
         bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.mesh.remove_doubles()
+        bpy.ops.mesh.remove_doubles(threshold = 0.001)
         bpy.ops.object.mode_set(mode='OBJECT')
         
         # Get Faces and Maximum Distance Paint to Order Vertices
