@@ -360,7 +360,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
     sphere_coll = GetCollection("Collision Spheres", make_active=False)
     connection_coll = GetCollection("Collision Connections", make_active=False)
     capsule_coll = GetCollection("Collision Capsules", make_active=False)
-    for ob in arma.children:
+    for ob in finalMeshes:
         if sphere_coll:
             ob.modifiers['ClothSimulation']['Input_14'] = sphere_coll
         if connection_coll:

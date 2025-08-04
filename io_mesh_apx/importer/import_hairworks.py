@@ -147,11 +147,6 @@ def read_hairworks(context, filepath, rotate_180):
     # Rotation of the growthmesh if requested
     if rotate_180:
         obj.rotation_euler[2] = np.pi
-        
-    # Materials attribution
-    temp_mat = bpy.data.materials.new("Material0")
-    growth_mesh.materials.append(temp_mat)
-    temp_mat.diffuse_color = (*colorsys.hsv_to_rgb(random.random(), .7, .9), 1) #random hue more pleasing than random rgb
 
     # UVmap creation
     uv_map = growth_mesh.attributes.new("DiffuseUV", 'FLOAT2', 'CORNER')

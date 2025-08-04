@@ -5,7 +5,7 @@ import bpy
 import re
 from bpy.props import EnumProperty, BoolProperty, FloatProperty, IntProperty
 from bpy.types import Operator, SpaceView3D
-from io_mesh_apx.utils import GetCollection, GetArmature, set_active_tool, ConvertMode, draw_max_dist_vectors, vertices_global_co_normal, setCustomWeightPalette
+from io_mesh_apx.utils import GetCollection, GetArmature, ConvertMode, draw_max_dist_vectors, vertices_global_co_normal, setCustomWeightPalette
 from io_mesh_apx.tools.paint_tools import add_drive_latch_group, applyDriveLatch, floodAllVertices, smoothAllVertices, copyMaxDistance
 
 class SmoothAll(Operator):
@@ -148,11 +148,10 @@ class PhysXPaintingPanel(bpy.types.Panel):
                     row.prop_enum(wm, "paintMode", 'Draw')
                     row.prop_enum(wm, "paintMode", 'Smooth')
                     brush_name = context.tool_settings.weight_paint.brush.name
-                    if brush_name in ['Draw', 'Blur']:
-                        if brush_name == 'Draw' and wm.paintMode != brush_name:
-                            wm.paintMode = 'Draw'
-                        elif brush_name == 'Blur' and wm.paintMode != 'Smooth':
-                            wm.paintMode = 'Smooth'
+                    if brush_name == 'Paint' and wm.paintMode != 'Draw':
+                        wm.paintMode = 'Draw'
+                    elif brush_name == 'Blur' and wm.paintMode != 'Smooth':
+                        wm.paintMode = 'Smooth'
                              
                     if wm.paintMode != 'Smooth':
                         row = layout.row()
@@ -197,12 +196,13 @@ class PhysXPaintingPanel(bpy.types.Panel):
                     row = layout.row()
                     row.enabled = wm.clothPaintingMode
                     row.operator(SmoothAll.bl_idname, text="Smooth All", icon='SMOOTHCURVE')
-                    
-                row = layout.row()
-                row.enabled = wm.clothPaintingMode
-                row.operator(FloodAll.bl_idname, text="Flood All", icon='IMAGE')
                 
-                if wm.paintLayer == 'PhysXBackstopDistance':
+                if wm.paintLayer == 'Drive/Latch' or wm.paintMode != 'Smooth':
+                    row = layout.row()
+                    row.enabled = wm.clothPaintingMode
+                    row.operator(FloodAll.bl_idname, text="Flood All", icon='IMAGE')
+                
+                if wm.paintLayer == 'PhysXBackstopDistance' and wm.paintMode == 'Draw':
                     row = layout.row()
                     row.enabled = wm.clothPaintingMode
                     row.operator(CopyMaxDistance.bl_idname, text="Copy Maximum Distance", icon='DRIVER_DISTANCE')
@@ -220,7 +220,7 @@ def updateClothPaintingMode(self, context):
     vgroups = applyDriveLatch(obj)
     mode = context.mode
     view_prefs = context.preferences.view
-    context.scene.frame_set(0)
+    bpy.ops.physx.delete_bake_data()
     if self.clothPaintingMode:
         self.previousMode = mode
         bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
@@ -233,12 +233,16 @@ def updateClothPaintingMode(self, context):
             setCustomWeightPalette('DEFAULT')
             vgroups.active_index = vgroups[self.paintLayer].index
             if self.paintMode == 'Draw':
-                set_active_tool('builtin_brush.Draw')
-                context.tool_settings.weight_paint.brush = bpy.data.brushes['Draw']
+                bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Paint")
+                w_brush = context.tool_settings.weight_paint.brush
+                w_brush.weight_tool = 'DRAW'
+                w_brush.curve_preset = 'CONSTANT'
                 context.scene.tool_settings.unified_paint_settings.weight = self.paintValue
             else:
-                set_active_tool('builtin_brush.Blur')
-                context.tool_settings.weight_paint.brush = bpy.data.brushes['Blur']
+                bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Blur")
+                w_brush = context.tool_settings.weight_paint.brush
+                w_brush.weight_tool = 'BLUR'
+                w_brush.curve_preset = 'CONSTANT'
                 bpy.data.brushes['Blur'].strength = 1
             context.scene.tool_settings.unified_paint_settings.size = self.paintRadius
             if self.viewPaintVectors:
@@ -279,11 +283,15 @@ def updateViewPaintVectors(self, context):
     
 def updatePaintMode(self, context):
     if self.paintMode == 'Draw':
-        set_active_tool('builtin_brush.Draw')
-        context.tool_settings.weight_paint.brush = bpy.data.brushes['Draw']
+        bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Paint")
+        w_brush = context.tool_settings.weight_paint.brush
+        w_brush.weight_tool = 'DRAW'
+        w_brush.curve_preset = 'CONSTANT'
     else:
-        set_active_tool('builtin_brush.Blur')
-        context.tool_settings.weight_paint.brush = bpy.data.brushes['Blur']
+        bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Blur")
+        w_brush = context.tool_settings.weight_paint.brush
+        w_brush.weight_tool = 'BLUR'
+        w_brush.curve_preset = 'CONSTANT'
         bpy.data.brushes['Blur'].strength = 1
         
 def updatePaintValue(self, context):
@@ -332,10 +340,10 @@ def updateDriveLatchGroup(self, context):
     vgroups.active_index = vgroups["PhysX" + self.driveLatchMode + self.driveLatchGroup[5:]].index
         
 def updatePaintModeDriveLatch(self, context):
-    set_active_tool('builtin_brush.Draw')
-    w_paint = context.tool_settings.weight_paint
-    w_paint.brush = bpy.data.brushes['Draw']
-    w_paint.brush.curve_preset = 'CONSTANT'
+    bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Paint")
+    w_brush = context.tool_settings.weight_paint.brush
+    w_brush.weight_tool = 'DRAW'
+    w_brush.curve_preset = 'CONSTANT'
     if self.paintModeDriveLatch == 'Add':
         context.scene.tool_settings.unified_paint_settings.weight = 1
     else: 

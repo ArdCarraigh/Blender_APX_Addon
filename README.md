@@ -3,7 +3,7 @@
 ## Content of the addon
 
  Import/export .apx cloth, hair and destruction simulation files into/from blender.
- Developed for Blender 4.3.2, other versions are not tested.
+ Developed for Blender 4.5.X, other versions are not tested.
  
  The geometry nodes implementation of (X)PBD simulations is the work of [Lukas Tönne](https://github.com/lukas-toenne/node-assets). 
 
@@ -26,6 +26,7 @@
  
  - Cloth real-time simulation performs decently on small meshes, but might not offer suitable performances on dense meshes. It also only has rest edge length constraints as implementing shearing, bending and tether constraints would worsen the performances even further,
  - The addon leverages Blender's builtin simulations (for hair and destruction assets) which are extremely far from PhysX simulation,
+ - The hairworks shader in Blender is not a 1:1 recreation of the original hairworks shader. Also, it relies on EEVEE, but EEVEE cannot sample (legacy) particles' color from a texture. 
  - Blender freezes when importing some destruction assets. For some reason it fails at separating a mesh by selected vertices sometimes,
  - Destruction assets import is incomplete and export is non-existent at the moment.
  

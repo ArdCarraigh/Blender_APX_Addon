@@ -148,7 +148,7 @@ def floodAllVertices(context, obj, group_name, value):
 def smoothAllVertices(context, obj, group_name):
     vgroups = obj.vertex_groups
     vgroups.active_index = vgroups[group_name].index
-    bpy.ops.object.vertex_group_smooth(group_select_mode='ACTIVE', factor=1, repeat=10)
+    bpy.ops.object.vertex_group_smooth(group_select_mode='ACTIVE', factor=1, repeat=1)
     
 def copyMaxDistance(context, obj):
     vgroups = obj.vertex_groups

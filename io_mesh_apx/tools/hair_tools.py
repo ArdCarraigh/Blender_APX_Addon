@@ -257,7 +257,11 @@ def haircard_curve(context, hair_mesh, uv_orientation = "-Y", tolerance = 0.05):
     for coll in obj_dup.users_collection:
         if coll != coll_temp:
             coll.objects.unlink(obj_dup)
-    bpy.ops.mesh.separate(type='LOOSE')
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.separate(type='LOOSE') # Separate in Edit Mode to avoid messing up normals
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode='OBJECT')
     objects = coll_temp.objects
     
     coords_all = []

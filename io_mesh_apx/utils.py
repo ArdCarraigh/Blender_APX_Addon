@@ -4,6 +4,7 @@
 import bpy
 import numpy as np
 from mathutils import kdtree, Vector
+from math import sqrt
 from copy import deepcopy
 import bmesh
 import os.path
@@ -156,7 +157,7 @@ def cart2bary(obj, face, vert_co):
     C = (n.dot(nc))/n_lenght_squared
     return [A,B,C]
 
-def applyTransforms(obj, parent_scale = np.array([1,1,1]), parent_rotation = np.array([0,0,0]), parent_location = np.array([0,0,0]), export = False, local = False, bone = None):
+def applyTransforms(obj, parent_scale = np.array([1,1,1]), parent_rotation = np.array([0,0,0]), parent_location = np.array([0,0,0]), export = False, local = False, bone = None, half = False):
     selectOnly(obj)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     obj.scale = 1/parent_scale
@@ -166,9 +167,16 @@ def applyTransforms(obj, parent_scale = np.array([1,1,1]), parent_rotation = np.
     Pos = None
     Radius = None
     if export:
-        bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-        Pos = deepcopy(obj.matrix_world.translation)
-        Radius = np.linalg.norm(obj.data.vertices[0].co)
+        if half:
+            vert_co_0 = obj.data.vertices[0].co
+            vert_co_54 = obj.data.vertices[54].co
+            Radius = np.linalg.norm((vert_co_0 - vert_co_54))
+            Radius = sqrt(Radius**2 + Radius**2)/2
+            Pos = vert_co_0 - Radius * obj.data.vertices[0].normal
+        else:
+            bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+            Pos = deepcopy(obj.matrix_world.translation)
+            Radius = np.linalg.norm(obj.data.vertices[0].co)
         if local:
             Pos = bone.matrix_local.inverted() @ Pos
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
@@ -339,6 +347,7 @@ def ImportTemplates():
     #if 'apx_geometry_nodes_templates.blend' not in bpy.data.libraries:
     with bpy.data.libraries.load(os.path.dirname(__file__) + "/templates/apx_geometry_nodes_templates.blend", link = False) as (data_from, data_to):
         data_to.node_groups = data_from.node_groups
+        data_to.materials = data_from.materials
     
 def GetArmature():
     main_coll = GetCollection(make_active = False)
@@ -372,15 +381,6 @@ def GetArmature():
                 bpy.ops.object.parent_set(type="ARMATURE_AUTO", xmirror=False, keep_transform=False)
                 
     return arma
-
-def set_active_tool(tool_name):
-    for area in bpy.context.screen.areas:
-        if area.type == "VIEW_3D":
-            override = bpy.context.copy()
-            override["space_data"] = area.spaces[0]
-            override["area"] = area
-            with bpy.context.temp_override(**override):
-                bpy.ops.wm.tool_set_by_id(name=tool_name)
             
 def getWeightArray(verts, vg):
     weights = []

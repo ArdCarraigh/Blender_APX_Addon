@@ -44,11 +44,9 @@ def setup_hairworks(context, obj):
     # Check Wind
     GetWind()
     
-    # Check Material 
-    if not mesh.materials:
-        temp_mat = bpy.data.materials.new(name="Material")
-        mesh.materials.append(temp_mat)
-        temp_mat.diffuse_color = (*colorsys.hsv_to_rgb(random.random(), .7, .9), 1)
+    # Remove Materials
+    while mesh.materials:
+        mesh.materials.pop(index = 0)
         
     # Refresh the Hair Simulation Modifier
     if 'Hairworks' in obj.modifiers:
@@ -78,9 +76,11 @@ def setup_hairworks(context, obj):
     SetUpHairworksMaterial(obj, apx_coll, sim)
                    
 def SetUpHairworksMaterial(obj, parent_coll, material):
+    ImportTemplates()
     wm = bpy.context.window_manager.physx
     wm.PhysXSubPanel = 'collision'
     selectOnly(obj)
+    mesh = obj.data
     if 'Hairworks' not in obj.modifiers:
         mod = obj.modifiers.new(name="Hairworks", type="PARTICLE_SYSTEM")
         part_sys = mod.particle_system
@@ -90,7 +90,7 @@ def SetUpHairworksMaterial(obj, parent_coll, material):
         settings.display_step = 3
         settings.emit_from = 'VERT'
         settings.use_emit_random = False
-        settings.count = len(obj.data.vertices)
+        settings.count = len(mesh.vertices)
         settings.hair_length = 0.1
         bpy.ops.object.mode_set(mode='PARTICLE_EDIT')
         particle_edit = bpy.context.tool_settings.particle_edit
@@ -109,13 +109,15 @@ def SetUpHairworksMaterial(obj, parent_coll, material):
     
     bpy.context.scene.render.hair_type = 'STRIP'
     
-    if "SimulationCurves" not in obj.modifiers:
-        if "SimulationCurvesTemplate" not in bpy.data.node_groups:
-            ImportTemplates()
-        node_group = bpy.data.node_groups["SimulationCurvesTemplate"].copy()
-        node_group.name = "SimulationCurves"
-        node_mod = obj.modifiers.new(type='NODES', name = "SimulationCurves")
-        node_mod.node_group = node_group
+    node_group = bpy.data.node_groups["SimulationCurvesTemplate"].copy()
+    node_group.name = "SimulationCurves"
+    node_mod = obj.modifiers.new(type='NODES', name = "SimulationCurves")
+    node_mod.node_group = node_group
+        
+    # Blender Material
+    mat = bpy.data.materials["HairworksMaterialTemplate"].copy()
+    mat.name = "HairworksMaterial"
+    mesh.materials.append(mat) 
     
     SetAttributes(wm.hair, material)
                 

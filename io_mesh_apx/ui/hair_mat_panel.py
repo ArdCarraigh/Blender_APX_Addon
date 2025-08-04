@@ -796,7 +796,7 @@ class PhysXHairGraphicsPanel(bpy.types.Panel):
                 if wm.specularPowerSecondary != obj["specularPowerSecondary"]:
                     wm.specularPowerSecondary = obj["specularPowerSecondary"]
                 box_row = box.row()
-                box_row.prop(wm, "specularSecondaryOffset", text="Power Exponent")
+                box_row.prop(wm, "specularSecondaryOffset", text="Offset")
                 if wm.specularSecondaryOffset != obj["specularSecondaryOffset"]:
                     wm.specularSecondaryOffset = obj["specularSecondaryOffset"]
             
@@ -1330,22 +1330,32 @@ def updateRootColorTexture(self, context):
     GetArmature().children[0]["rootColorTexture"] = self.rootColorTexture
     
 def updateRootColor(self, context):
-    GetArmature().children[0]["rootColor"] = self.rootColor
+    obj = GetArmature().children[0]
+    obj["rootColor"] = self.rootColor
+    obj.data.materials[0].node_tree.nodes["Root Color"].outputs["Color"].default_value = self.rootColor
 
 def updateTipColorTexture(self, context):
     GetArmature().children[0]["tipColorTexture"] = self.tipColorTexture
     
 def updateTipColor(self, context):
-    GetArmature().children[0]["tipColor"] = self.tipColor
+    obj = GetArmature().children[0]
+    obj["tipColor"] = self.tipColor
+    obj.data.materials[0].node_tree.nodes["Tip Color"].outputs["Color"].default_value = self.tipColor
     
 def updateRootTipColorWeight(self, context):
-    GetArmature().children[0]["rootTipColorWeight"] = self.rootTipColorWeight
+    obj = GetArmature().children[0]
+    obj["rootTipColorWeight"] = self.rootTipColorWeight
+    obj.data.materials[0].node_tree.nodes["Root Tip Weight"].outputs["Value"].default_value = self.rootTipColorWeight
 
 def updateRootTipColorFalloff(self, context):
-    GetArmature().children[0]["rootTipColorFalloff"] = self.rootTipColorFalloff
+    obj = GetArmature().children[0]
+    obj["rootTipColorFalloff"] = self.rootTipColorFalloff
+    obj.data.materials[0].node_tree.nodes["Root Tip Falloff"].outputs["Value"].default_value = self.rootTipColorFalloff
     
 def updateRootAlphaFalloff(self, context):
-    GetArmature().children[0]["rootAlphaFalloff"] = self.rootAlphaFalloff
+    obj = GetArmature().children[0]
+    obj["rootAlphaFalloff"] = self.rootAlphaFalloff
+    obj.data.materials[0].node_tree.nodes["Root Alpha Falloff"].outputs["Value"].default_value = self.rootAlphaFalloff
     
 def updateStrandTexture(self, context):
     GetArmature().children[0]["strandTexture"] = self.strandTexture
@@ -1393,7 +1403,9 @@ def updateSpecularTexture(self, context):
     GetArmature().children[0]["specularTexture"] = self.specularTexture
     
 def updateSpecularColor(self, context):
-    GetArmature().children[0]["specularColor"] = self.specularColor
+    obj = GetArmature().children[0]
+    obj["specularColor"] = self.specularColor
+    obj.data.materials[0].node_tree.nodes["Specular Color"].outputs["Color"].default_value = self.specularColor
     
 def updateSpecularNoiseScale(self, context):
     GetArmature().children[0]["specularNoiseScale"] = self.specularNoiseScale
@@ -1402,37 +1414,55 @@ def updateSpecularEnvScale(self, context):
     GetArmature().children[0]["specularEnvScale"] = self.specularEnvScale
     
 def updateSpecularPrimary(self, context):
-    GetArmature().children[0]["specularPrimary"] = self.specularPrimary
+    obj = GetArmature().children[0]
+    obj["specularPrimary"] = self.specularPrimary
+    obj.data.materials[0].node_tree.nodes["Primary Specular Scale"].outputs["Value"].default_value = self.specularPrimary
     
 def updateSpecularPowerPrimary(self, context):
-    GetArmature().children[0]["specularPowerPrimary"] = self.specularPowerPrimary
+    obj = GetArmature().children[0]
+    obj["specularPowerPrimary"] = self.specularPowerPrimary
+    obj.data.materials[0].node_tree.nodes["Primary Specular Shininess"].outputs["Value"].default_value = self.specularPowerPrimary
     
 def updateSpecularPrimaryBreakup(self, context):
     GetArmature().children[0]["specularPrimaryBreakup"] = self.specularPrimaryBreakup
     
 def updateSpecularSecondary(self, context):
-    GetArmature().children[0]["specularSecondary"] = self.specularSecondary
+    obj = GetArmature().children[0]
+    obj["specularSecondary"] = self.specularSecondary
+    obj.data.materials[0].node_tree.nodes["Secondary Specular Scale"].outputs["Value"].default_value = self.specularSecondary
     
 def updateSpecularPowerSecondary(self, context):
-    GetArmature().children[0]["specularPowerSecondary"] = self.specularPowerSecondary
+    obj = GetArmature().children[0]
+    obj["specularPowerSecondary"] = self.specularPowerSecondary
+    obj.data.materials[0].node_tree.nodes["Secondary Specular Shininess"].outputs["Value"].default_value = self.specularPowerSecondary
     
 def updateSpecularSecondaryOffset(self, context):
-    GetArmature().children[0]["specularSecondaryOffset"] = self.specularSecondaryOffset
+    obj = GetArmature().children[0]
+    obj["specularSecondaryOffset"] = self.specularSecondaryOffset
+    obj.data.materials[0].node_tree.nodes["Secondary Specular Offset"].outputs["Value"].default_value = self.specularSecondaryOffset
     
 def updateGlintStrength(self, context):
-    GetArmature().children[0]["glintStrength"] = self.glintStrength
+    obj = GetArmature().children[0]
+    obj["glintStrength"] = self.glintStrength
+    obj.data.materials[0].node_tree.nodes["Glint Scale"].outputs["Value"].default_value = self.glintStrength
     
 def updateGlintCount(self, context):
-    GetArmature().children[0]["glintCount"] = self.glintCount
+    obj = GetArmature().children[0]
+    obj["glintCount"] = self.glintCount
+    obj.data.materials[0].node_tree.nodes["Glint Size"].outputs["Value"].default_value = self.glintCount
     
 def updateGlintExponent(self, context):
-    GetArmature().children[0]["glintExponent"] = self.glintExponent
+    obj = GetArmature().children[0]
+    obj["glintExponent"] = self.glintExponent
+    obj.data.materials[0].node_tree.nodes["Glint Power"].outputs["Value"].default_value = self.glintExponent
     
 def updateUseShadows(self, context):
     GetArmature().children[0]["useShadows"] = self.useShadows
     
 def updateCastShadows(self, context):
-    GetArmature().children[0]["castShadows"] = self.castShadows
+    obj = GetArmature().children[0]
+    obj["castShadows"] = self.castShadows
+    obj.data.materials[0].node_tree.nodes['Control Cast Shadows'].inputs[1].default_value = self.castShadows
     
 def updateReceiveShadows(self, context):
     GetArmature().children[0]["receiveShadows"] = self.receiveShadows
@@ -2486,7 +2516,7 @@ PROPS_HairMaterial_Panel = [
         update=updateDiffuseHairNormalWeight
     )),
 ('diffuseBoneIndex', EnumProperty(
-        name="diffuseBoneIndex",
+        name="Diffuse Bone Index",
         description="Selector to pick a bone that is appropriate for the Hair Normal Weight",
         items=getBonesIndices,
         update = updateDiffuseBoneIndex

@@ -4,8 +4,8 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx/.apb)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (5, 9, 1),
-    "blender": (4, 3, 2),
+    "version": (5, 10),
+    "blender": (4, 5, 1),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
     "doc_url": "https://github.com/ArdCarraigh/Blender_APX_Addon",
@@ -159,21 +159,35 @@ class ExportApx(Operator, ExportHelper):
         min = 2,
     )
     
+    apply_modifiers: BoolProperty(
+        name = "Apply Modifiers",
+        default = True,
+        description = "Apply modifiers to cloth meshes (except Armature ones). UV maps, attributes, color attributes and vertex groups might not be preserved"
+    )
+    
     n_verts_check = False
 
     def draw(self, context):
         layout = self.layout
         main_coll = GetCollection(make_active=False)
-        if "PhysXAssetType" in main_coll and main_coll["PhysXAssetType"] == 'Hairworks':
-            nverts = getNumberHairVerts()
-            row = layout.row()
-            box = row.box()
-            box.label(text="Hairworks", icon='PARTICLE_POINT')
-            box_row = box.row()
-            box_row.prop(self, "resample_value")
-            if self.resample_value != nverts and not self.n_verts_check:
-                self.resample_value = nverts
-                self.n_verts_check = True
+        if "PhysXAssetType" in main_coll:
+            if main_coll["PhysXAssetType"] == 'Hairworks':
+                nverts = getNumberHairVerts()
+                row = layout.row()
+                box = row.box()
+                box.label(text="Hairworks", icon='PARTICLE_POINT')
+                box_row = box.row()
+                box_row.prop(self, "resample_value")
+                if self.resample_value != nverts and not self.n_verts_check:
+                    self.resample_value = nverts
+                    self.n_verts_check = True
+                    
+            elif main_coll["PhysXAssetType"] == 'Clothing':
+                row = layout.row()
+                box = row.box()
+                box.label(text="Clothing", icon='MATCLOTH')
+                box_row = box.row()
+                box_row.prop(self, "apply_modifiers")
 
     def execute(self, context):
         context.scene.frame_set(0)
@@ -189,7 +203,7 @@ class ExportApx(Operator, ExportHelper):
                 write_hairworks(context, self.filepath, self.resample_value)
                 self.n_verts_check = False
             elif main_coll["PhysXAssetType"] == 'Clothing':
-                write_clothing(context, self.filepath)
+                write_clothing(context, self.filepath, self.apply_modifiers)
                 
         return {'FINISHED'}
     

@@ -11,7 +11,7 @@ from io_mesh_apx.exporter.template_clothing import *
 from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, apply_drive
 from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray, deleteIsolatedVertices
     
-def write_clothing(context, filepath):
+def write_clothing(context, filepath, apply_modifiers):
     kwargs = {}
     main_coll = GetCollection()
     assert(main_coll is not None)
@@ -120,6 +120,10 @@ def write_clothing(context, filepath):
         bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
         duplicate_obj = bpy.context.active_object
         duplicate_obj.name = "tempGraphicalMesh"
+        #Apply modifiers
+        for mod in duplicate_obj.modifiers:
+            if mod.type != 'ARMATURE' and mod.name != 'ClothSimulation':
+                bpy.ops.object.modifier_apply(modifier = mod.name)
         applyTransforms(duplicate_obj, armaScale, armaRot, armaLoc)
         TriangulateActiveMesh()
         deleteIsolatedVertices(duplicate_obj)
@@ -279,8 +283,12 @@ def write_clothing(context, filepath):
         selectOnly(duplicate_obj)
         #Edge Split where split normals or uv seam (necessary as these face corner data are stored per vertex in .apx)
         SplitMesh(duplicate_obj.data)
-        #Split by materials
+        #Split by materials # In edit mode to avoid messing up normals
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.separate(type='MATERIAL')
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode='OBJECT')
         
         #Loop through submeshes
         submesh_meshes = []
@@ -616,7 +624,7 @@ def write_clothing(context, filepath):
                 if capsule.name in subCapsule.name:
                     subCapsules.append(subCapsule)
                     if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
-                        sphereLocation, sphereRadius = applyTransforms(subCapsule, armaScale, armaRot, armaLoc, True)
+                        sphereLocation, sphereRadius = applyTransforms(subCapsule, armaScale, armaRot, armaLoc, True, half = True)
                         spherePositions.append(sphereLocation)    
             JoinThem(subCapsules)
             capsuleDir = spherePositions[0] - spherePositions[1]

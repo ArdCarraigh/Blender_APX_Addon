@@ -49,12 +49,6 @@ class PhysXModalGrab(Operator):
     vert_id = 0
     vert_pos = [0,0,0]
     depth = [0,0,0]
-
-    def __init__(self):
-        print("Start")
-
-    def __del__(self):
-        print("End")
         
     def execute(self, context):
         mod = context.active_object.modifiers['ClothSimulation']

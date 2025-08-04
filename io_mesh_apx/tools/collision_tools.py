@@ -14,17 +14,9 @@ def add_sphere(context, bone, radius, location, use_location, set_sim = False):
     spheres = collision_coll.objects
     main_coll = GetCollection(make_active=False)
     arma = GetArmature()   
-    if main_coll["PhysXAssetType"] == "Clothing":
-        if set_sim:
-            for obj in arma.children:
-                obj.modifiers['ClothSimulation']['Input_14'] = collision_coll
-        capsule_coll = GetCollection("Collision Capsules", make_active=False)
-        n_spheres = 0
-        if collision_coll:
-            n_spheres += len(collision_coll.objects)
-        if capsule_coll:
-            n_spheres += len(capsule_coll.objects)*2
-        assert(n_spheres < 32)
+    if main_coll["PhysXAssetType"] == "Clothing" and set_sim:
+        for obj in arma.children:
+            obj.modifiers['ClothSimulation']['Input_14'] = collision_coll
            
     bone = arma.data.bones[bone]
     bonePos = np.array(bone.matrix_local.translation)
@@ -142,18 +134,11 @@ def remove_connection(context, index):
     
 def add_capsule(context, bone, radius, height, location, rotation, use_location, set_sim = False):
     collision_coll = GetCollection("Collision Capsules", True)
+    capsules = collision_coll.objects
     arma = GetArmature()
     if set_sim:
         for obj in arma.children:
             obj.modifiers['ClothSimulation']['Socket_3'] = collision_coll
-    capsules = collision_coll.objects
-    sphere_coll = GetCollection("Collision Spheres", make_active=False)
-    n_spheres = 0
-    if sphere_coll:
-        n_spheres += len(sphere_coll.objects)
-    if collision_coll:
-        n_spheres += len(collision_coll.objects)*2
-    assert(n_spheres < 31)
     
     bone = arma.data.bones[bone]
     bonePos = np.array(bone.matrix_local.translation)
@@ -192,7 +177,7 @@ def add_capsule(context, bone, radius, height, location, rotation, use_location,
     JoinThem(meshes)
     capsule = bpy.context.active_object
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    bpy.ops.mesh.remove_doubles(threshold=0.01)
+    bpy.ops.mesh.remove_doubles(threshold=0.001)
     bpy.ops.transform.translate(value=location)
     bpy.ops.transform.rotate(value = rotation[0], orient_axis='X', constraint_axis=(True, False, False))
     bpy.ops.transform.rotate(value = rotation[1], orient_axis='Y', constraint_axis=(False, True, False))
@@ -254,7 +239,7 @@ def convert_capsule(context):
                     if capsule_name in subCapsule.name:
                         subCapsules.append(subCapsule)
                         if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
-                            sphereLocation, sphereRadius = applyTransforms(subCapsule, armaScale, armaRot, armaLoc, True)
+                            sphereLocation, sphereRadius = applyTransforms(subCapsule, armaScale, armaRot, armaLoc, True, half = True)
                             spheres.append(add_sphere(bpy.context, boneName, sphereRadius, sphereLocation, True))
                             
                 JoinThem(subCapsules)         
@@ -372,7 +357,7 @@ def mirrorRagdoll(context, pattern, replacement, axis):
                         if capsule.name in subCapsule.name:
                             subCapsules.append(subCapsule)
                             if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
-                                sphereLocation, sphereRadius = applyTransforms(subCapsule, np.array(arma.scale), np.array(arma.rotation_euler), np.array(arma.location), True)
+                                sphereLocation, sphereRadius = applyTransforms(subCapsule, np.array(arma.scale), np.array(arma.rotation_euler), np.array(arma.location), True, half = True)
                                 spherePositions.append(sphereLocation)    
                     JoinThem(subCapsules)
                     capsuleDir = spherePositions[0] - spherePositions[1]

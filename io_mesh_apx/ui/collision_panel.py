@@ -3,7 +3,7 @@
 
 import bpy
 import numpy as np
-from copy import deepcopy
+from math import sqrt
 from mathutils import Vector
 from bpy.props import FloatProperty, FloatVectorProperty, IntProperty, PointerProperty, BoolProperty, EnumProperty, StringProperty
 from bpy.types import Operator
@@ -400,6 +400,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
                 box_row = box.row()
                 col = box_row.column()
                 col.enabled = (n_spheres < 32 and main_coll["PhysXAssetType"] == "Clothing") or main_coll["PhysXAssetType"] == "Hairworks"
+                col.alert = (n_spheres > 32 and main_coll["PhysXAssetType"] == "Clothing")
                 col.operator(AddCollisionSphere.bl_idname, text="Add")
                 col = box_row.column()
                 col.enabled = wm.PhysXCollisionSpheresIndex != -1
@@ -447,6 +448,7 @@ class PhysXCollisionPanel(bpy.types.Panel):
                     box_row = box.row()
                     col = box_row.column()
                     col.enabled = n_spheres < 31
+                    col.alert = n_spheres > 32
                     col.operator(AddCollisionCapsule.bl_idname, text="Add")
                     col = box_row.column()
                     col.enabled = wm.PhysXCollisionCapsulesIndex != -1
@@ -540,8 +542,12 @@ def updateCapsuleRadius(self, context):
                 subCapsule.rotation_euler = 2*(np.pi)-np.array(arma.rotation_euler)
                 subCapsule.location = -np.array(arma.location)
                 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-                bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-                spherePositions.append(deepcopy(subCapsule.matrix_world.translation))
+                vert_co_0 = subCapsule.data.vertices[0].co
+                vert_co_54 = subCapsule.data.vertices[54].co
+                Radius = np.linalg.norm((vert_co_0 - vert_co_54))
+                Radius = sqrt(Radius**2 + Radius**2)/2
+                Pos = vert_co_0 - Radius * subCapsule.data.vertices[0].normal
+                spherePositions.append(Pos)
     for obj in subCapsules:
         bpy.data.objects.remove(obj)
     capsuleDir = spherePositions[0] - spherePositions[1]
@@ -569,9 +575,12 @@ def updateCapsuleHeight(self, context):
                 subCapsule.rotation_euler = 2*(np.pi)-np.array(arma.rotation_euler)
                 subCapsule.location = -np.array(arma.location)
                 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-                bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-                Radius = np.linalg.norm(subCapsule.data.vertices[0].co)
-                spherePositions.append(deepcopy(subCapsule.matrix_world.translation))
+                vert_co_0 = subCapsule.data.vertices[0].co
+                vert_co_54 = subCapsule.data.vertices[54].co
+                Radius = np.linalg.norm((vert_co_0 - vert_co_54))
+                Radius = sqrt(Radius**2 + Radius**2)/2
+                Pos = vert_co_0 - Radius * subCapsule.data.vertices[0].normal
+                spherePositions.append(Pos)
     for obj in subCapsules:
         bpy.data.objects.remove(obj)
     capsuleDir = spherePositions[0] - spherePositions[1]
