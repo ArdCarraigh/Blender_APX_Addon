@@ -144,7 +144,9 @@ def write_clothing(context, filepath, apply_modifiers):
         bpy.ops.mesh.delete(type='VERT')
         bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.remove_doubles(threshold = 0.001)
+        bpy.ops.mesh.select_all(action="DESELECT")
         bpy.ops.object.mode_set(mode='OBJECT')
+        deleteIsolatedVertices(physicalMesh)
         
         # Get Faces and Maximum Distance Paint to Order Vertices
         #MaximumDistance
@@ -187,6 +189,7 @@ def write_clothing(context, filepath, apply_modifiers):
         constrainCoefficients = []
         for vg in ["PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance"]:
             color_array2 = getWeightArray(physics_mesh.vertices, vertex_groups[vg])
+            if vg != "PhysXBackstopDistance": color_array2[color_array2 < 0.001] = 0
             if vg == "PhysXMaximumDistance": color_array2 *= maximumMaxDistance
             constrainCoefficients.append(deepcopy(color_array2))
         constrainCoefficients = np.array(constrainCoefficients).T
