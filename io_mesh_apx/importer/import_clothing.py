@@ -261,6 +261,8 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         #Scale Maximum Distance Paint
         if maximumMaxDistance:
             constrainCoefficients[0] = constrainCoefficients[0]/maximumMaxDistance
+        #Scale Backstop Distance to support negative values
+        constrainCoefficients[2] = constrainCoefficients[2] * 0.5 + 0.5
         max_dist_group = obj.vertex_groups.new(name="PhysXMaximumDistance")
         back_rad_group = obj.vertex_groups.new(name="PhysXBackstopRadius")
         back_dist_group = obj.vertex_groups.new(name="PhysXBackstopDistance")
@@ -289,7 +291,9 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         # Copy vertex groups data to Graphical Meshes
         graph_mesh.vertex_groups.new(name="PhysXMaximumDistance")
         graph_mesh.vertex_groups.new(name="PhysXBackstopRadius")
-        graph_mesh.vertex_groups.new(name="PhysXBackstopDistance")
+        vg = graph_mesh.vertex_groups.new(name="PhysXBackstopDistance")
+        for k in range(len(graph_mesh.data.vertices)): # Default values to 0.5
+            vg.add([k], 0.5, 'REPLACE')
         graph_mesh.vertex_groups.new(name="PhysXDrive1")
         graph_mesh.vertex_groups.new(name="PhysXLatch1")
         bpy.context.view_layer.objects.active = graph_mesh

@@ -175,7 +175,7 @@ class PhysXMainPanel(bpy.types.Panel):
                 
                 check_mesh =  (main_coll is not None and obj is not None and obj in arma.children and obj.type == 'MESH')
                 box_row = box.row()
-                box_row.enabled = check_mesh
+                box_row.enabled = check_mesh and bpy.context.mode != 'PAINT_WEIGHT'
                 split = box_row.split(factor = 0.85, align = True)
                 split.operator(PhysXBakeSimulation.bl_idname, text = "Bake Simulation")
                 split.operator(PhysXDeleteBakedData.bl_idname, text = "", icon='TRASH')

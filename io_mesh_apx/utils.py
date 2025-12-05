@@ -489,22 +489,93 @@ def ConvertMode(mode):
         case 'PARTICLE':
             return 'PARTICLE_EDIT'
         
-def draw_max_dist_vectors(obj, vg, max_max_dist, coords, normals):
-    shader_line = gpu.shader.from_builtin('POLYLINE_SMOOTH_COLOR') if not bpy.app.background else None
+def draw_paint_vectors(obj, layer, coords, normals):
+    shader_line = gpu.shader.from_builtin('POLYLINE_FLAT_COLOR') if not bpy.app.background else None
     gpu.state.blend_set('ALPHA')
     gpu.state.depth_mask_set(True)
     gpu.state.depth_test_set('LESS')
     region = bpy.context.region
-    rv3d = bpy.context.space_data.region_3d
     shader_line.uniform_float("lineWidth", 1)
     shader_line.uniform_float("viewportSize", (region.width, region.height))
     
-    max_dists = getWeightArray(obj.data.vertices, vg)
-    colors = [[x,x,x,1] for x in max_dists]
-    colors = np.repeat(colors, 2, axis = 0).tolist()
-    coords2 = list(chain.from_iterable(zip(coords, coords + normals * np.repeat(max_dists, 3, axis=0).reshape(-1,3) * max_max_dist)))
+    dists = getWeightArray(obj.data.vertices, obj.vertex_groups[layer])
+    if layer != "PhysXBackstopDistance":
+        bool_array = dists > 0
+        coords = coords[bool_array]
+        normals = normals[bool_array]
+        dists = dists[bool_array]
+        colors = [[x, x, x, 1] for x in dists for _ in (0,1)]
+        ends = normals * dists[:, None]
+        if layer == "PhysXMaximumDistance":
+            ends *= bpy.context.window_manager.physx.cloth.maximumMaxDistance
+    else:
+        dists = (dists - 0.5) * 2
+        bool_array = dists != 0
+        coords = coords[bool_array]
+        normals = normals[bool_array]
+        dists = dists[bool_array]
+        colors = []
+        append = colors.append
+        for x in dists:
+            a = 1 - x
+            b = 1 + x
+            base = [1, a, a, 1] if x > 0 else [b, b, 1, 1]
+            append(base)
+            append(base.copy())
+        ends = normals * -dists[:, None]
+ 
+    coords2 = np.empty((coords.shape[0] * 2, coords.shape[1]), dtype=coords.dtype)
+    coords2[0::2] = coords
+    coords2[1::2] = coords + ends
+    coords2 = coords2.tolist()
     
     batch = batch_for_shader(shader_line, 'LINES', {"pos": coords2, "color": colors})
+    batch.draw(shader_line)
+        
+    gpu.state.blend_set('NONE')
+    
+def draw_paint_spheres(obj, layer, coords, normals, dirs):
+    shader_line = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR') if not bpy.app.background else None
+    gpu.state.blend_set('ALPHA')
+    gpu.state.depth_mask_set(True)
+    gpu.state.depth_test_set('LESS')
+    region = bpy.context.region
+    shader_line.uniform_float("lineWidth", 1)
+    shader_line.uniform_float("viewportSize", (region.width, region.height))
+    shader_line.uniform_float("color", (0,1,0,1))
+    
+    back_dists = (getWeightArray(obj.data.vertices, obj.vertex_groups["PhysXBackstopDistance"]) - 0.5) * 2
+    back_radii = getWeightArray(obj.data.vertices, obj.vertex_groups["PhysXBackstopRadius"])
+    centers = coords.copy()
+    view_rotation = np.array(bpy.context.space_data.region_3d.view_rotation.to_matrix())
+    
+    if layer == "PhysXMaximumDistance":
+        max_max_dist = bpy.context.window_manager.physx.cloth.maximumMaxDistance
+        max_dists = getWeightArray(obj.data.vertices, obj.vertex_groups[layer])
+        bool_array = max_dists > 0
+        centers = centers[bool_array]
+        normals = normals[bool_array]
+        back_dists = back_dists[bool_array]
+        back_radii = back_radii[bool_array]
+        max_dists = max_dists[bool_array]
+        bool_array = np.array((back_dists < 0, back_radii > 0)).all(axis = 0)
+        centers[bool_array] -= normals[bool_array] * back_dists[bool_array, None]
+        coords2 = (centers[:, None, :] + np.einsum('ij,n->nij', dirs @ view_rotation.T, max_dists * max_max_dist)).reshape(-1,3).tolist()
+        n_verts = len(max_dists) * 16
+    else:
+        bool_array = back_radii > 0
+        centers = centers[bool_array]
+        normals = normals[bool_array]
+        back_dists = back_dists[bool_array]
+        back_radii = back_radii[bool_array]
+        centers -= normals * (back_dists + back_radii)[:, None]
+        coords2 = (centers[:, None, :] + np.einsum("ij,n->nij", dirs @ view_rotation.T, back_radii)).reshape(-1,3).tolist()
+        n_verts = len(back_radii) * 16
+        
+    indices = np.column_stack((np.arange(n_verts), np.arange(1, n_verts+1)))
+    indices[15::16, 1] = np.arange(0, n_verts, 16)
+    
+    batch = batch_for_shader(shader_line, 'LINES', {"pos": coords2}, indices = indices)
     batch.draw(shader_line)
         
     gpu.state.blend_set('NONE')
@@ -550,6 +621,13 @@ def setCustomWeightPalette(type):
         case 'DRIVE/LATCH':
             elems[1].position = 0.5
             elems[1].color = (0.5,0.5,0.5,1)
+            
+        case 'BACKSTOP_DISTANCE':
+            elems[1].position = 0.5
+            elems[1].color = (1,1,1,1)
+            elems[2].color = (1,0,0,1)
+            elems[0].color = (0,0,1,1)
+            
         
 def getBones(self, context):
     arma = GetArmature()

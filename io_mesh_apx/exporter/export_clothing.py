@@ -190,6 +190,7 @@ def write_clothing(context, filepath, apply_modifiers):
         for vg in ["PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance"]:
             color_array2 = getWeightArray(physics_mesh.vertices, vertex_groups[vg])
             if vg != "PhysXBackstopDistance": color_array2[color_array2 < 0.001] = 0
+            else: color_array2 = (color_array2 - 0.5) * 2
             if vg == "PhysXMaximumDistance": color_array2 *= maximumMaxDistance
             constrainCoefficients.append(deepcopy(color_array2))
         constrainCoefficients = np.array(constrainCoefficients).T

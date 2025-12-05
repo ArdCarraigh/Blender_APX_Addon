@@ -153,6 +153,6 @@ def smoothAllVertices(context, obj, group_name):
 def copyMaxDistance(context, obj):
     vgroups = obj.vertex_groups
     verts = obj.data.vertices
-    weights = getWeightArray(verts, vgroups['PhysXMaximumDistance']) * obj['maximumMaxDistance']
+    weights = getWeightArray(verts, vgroups['PhysXMaximumDistance']) * obj['maximumMaxDistance'] * 0.5 + 0.5
     for k in range(len(verts)):
         vgroups['PhysXBackstopDistance'].add([k], weights[k], 'REPLACE')

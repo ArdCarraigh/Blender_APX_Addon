@@ -159,10 +159,14 @@ def setup_clothing(context, obj):
         for layer in ["PhysXMaximumDistance", "PhysXBackstopRadius", "PhysXBackstopDistance", "PhysXDrive1", "PhysXLatch1"]:
             if layer not in ob.vertex_groups:
                 ob.vertex_groups.new(name=layer)
-                if layer == "PhysXDrive1":
-                    drive_group = ob.vertex_groups["PhysXDrive1"]
+                if layer == "PhysXBackstopDistance":
+                    vg = ob.vertex_groups["PhysXBackstopDistance"]
                     for k in range(len(mesh.vertices)):
-                        drive_group.add([k], 1, 'REPLACE')
+                        vg.add([k], 0.5, 'REPLACE')
+                elif layer == "PhysXDrive1":
+                    vg = ob.vertex_groups["PhysXDrive1"]
+                    for k in range(len(mesh.vertices)):
+                        vg.add([k], 1, 'REPLACE')
         cleanUpDriveLatchGroups(ob)
                
         # Check Material 

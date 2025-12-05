@@ -3,9 +3,10 @@
 
 import bpy
 import re
+import numpy as np
 from bpy.props import EnumProperty, BoolProperty, FloatProperty, IntProperty
 from bpy.types import Operator, SpaceView3D
-from io_mesh_apx.utils import GetCollection, GetArmature, ConvertMode, draw_max_dist_vectors, vertices_global_co_normal, setCustomWeightPalette
+from io_mesh_apx.utils import GetCollection, GetArmature, ConvertMode, draw_paint_vectors, draw_paint_spheres, vertices_global_co_normal, setCustomWeightPalette
 from io_mesh_apx.tools.paint_tools import add_drive_latch_group, applyDriveLatch, floodAllVertices, smoothAllVertices, copyMaxDistance
 
 class SmoothAll(Operator):
@@ -31,7 +32,11 @@ class FloodAll(Operator):
         obj = context.active_object
         vgroups = obj.vertex_groups
         group_name = vgroups[vgroups.active_index].name
-        floodAllVertices(context, obj, group_name, context.scene.tool_settings.unified_paint_settings.weight)
+        wm = context.window_manager.physx.cloth
+        if wm.paintLayer != 'PhysXBackstopDistance':
+            floodAllVertices(context, obj, group_name, wm.paintValue)
+        else:
+            floodAllVertices(context, obj, group_name, wm.paintValueBackstopDistance * 0.5 + 0.5)
         return {'FINISHED'}
     
 class CopyMaxDistance(Operator):
@@ -45,7 +50,7 @@ class CopyMaxDistance(Operator):
         copyMaxDistance(context, obj)
         return {'FINISHED'}
     
-class PhysXDisplayPaintVectors(Operator):
+class PhysXDisplayPaint(Operator):
     bl_idname = "physx.display_paint_vectors"
     bl_label = "Display Paint Vectors"
     bl_description = "Control for enabling or disabling the display of paint vectors in the viewport"
@@ -54,20 +59,23 @@ class PhysXDisplayPaintVectors(Operator):
 
     @staticmethod
     def handle_add(self, context):
-        if PhysXDisplayPaintVectors._handle is None:
-            coords, normals = vertices_global_co_normal(bpy.context.active_object)
-            PhysXDisplayPaintVectors._handle = SpaceView3D.draw_handler_add(draw_callback_px, (self, context, coords, normals), 'WINDOW', 'POST_VIEW')
+        if PhysXDisplayPaint._handle is None:
+            obj = context.active_object
+            coords, normals = vertices_global_co_normal(obj)
+            rots = np.arange(0,2*np.pi, 0.39269908169872414)
+            dirs = np.stack([np.cos(rots), np.sin(rots), np.zeros_like(rots)], axis=1)
+            PhysXDisplayPaint._handle = SpaceView3D.draw_handler_add(draw_callback_px, (self, context, obj, context.window_manager.physx.cloth.viewPaintMode, coords, normals, dirs), 'WINDOW', 'POST_VIEW')
 
     @staticmethod
     def handle_remove(self, context):
-        if PhysXDisplayPaintVectors._handle is not None:
-            SpaceView3D.draw_handler_remove(PhysXDisplayPaintVectors._handle, 'WINDOW')
-        PhysXDisplayPaintVectors._handle = None
+        if PhysXDisplayPaint._handle is not None:
+            SpaceView3D.draw_handler_remove(PhysXDisplayPaint._handle, 'WINDOW')
+        PhysXDisplayPaint._handle = None
 
     def execute(self, context):
         if context.area.type == 'VIEW_3D':
             wm = context.window_manager.physx.cloth
-            if wm.viewPaintVectors and wm.clothPaintingMode:
+            if wm.viewPaintMode != "OFF" and wm.clothPaintingMode:
                 self.handle_add(self, context)
                 context.area.tag_redraw()
             else:
@@ -81,10 +89,11 @@ class PhysXDisplayPaintVectors(Operator):
 
         return {'CANCELLED'}
     
-def draw_callback_px(self, context, coords, normals):
-    wm = context.window_manager.physx.cloth
-    obj = context.active_object
-    draw_max_dist_vectors(obj, obj.vertex_groups[wm.paintLayer], wm.maximumMaxDistance, coords, normals)
+def draw_callback_px(self, context, obj, mode, coords, normals, dirs):
+    if mode  == 'VECTOR':
+        draw_paint_vectors(obj, context.window_manager.physx.cloth.paintLayer, coords, normals)
+    elif mode  == 'SPHERE':
+        draw_paint_spheres(obj, context.window_manager.physx.cloth.paintLayer, coords, normals, dirs)
     
 class PhysXPaintingPanel(bpy.types.Panel):
     bl_idname = 'VIEW3D_PT_PhysX_painting_panel'
@@ -99,7 +108,7 @@ class PhysXPaintingPanel(bpy.types.Panel):
         layout = self.layout
         physx = context.window_manager.physx
         wm = physx.cloth
-        paint_settings = context.scene.tool_settings.unified_paint_settings
+        paint_settings = context.scene.tool_settings.weight_paint.unified_paint_settings
         if physx.PhysXSubPanel == 'painting':
             main_coll = GetCollection(make_active=False)
             arma = GetArmature()
@@ -124,44 +133,42 @@ class PhysXPaintingPanel(bpy.types.Panel):
                 if wm.clothPaintingMode and (context.scene.frame_current or bpy.context.mode != 'PAINT_WEIGHT' or not context.preferences.view.use_weight_color_range or not obj.show_wire or not re.search(r"PhysX", active_name)):
                     wm.clothPaintingMode = False
                     
-                row = layout.row()
+                row = layout.row(align = True)
                 row.enabled = wm.clothPaintingMode
-                row.prop(wm, "paintLayer", text = "Layer")
-                layers = ['PhysXMaximumDistance', 'PhysXBackstopRadius', 'PhysXBackstopDistance']
-                if active_name in layers and wm.paintLayer != active_name:
-                    wm.paintLayer = active_name
-                elif re.search(r"PhysX(Drive|Latch)[0-9]+", active_name) and wm.paintLayer != 'Drive/Latch':
-                    wm.paintLayer = 'Drive/Latch'
                      
                 if wm.paintLayer != 'Drive/Latch':
-                    split = row.split(factor = 1.3, align = False)
-                    split.enabled = wm.clothPaintingMode
-                    if wm.viewPaintVectors:
-                        icon = 'HIDE_OFF'
-                    else:
-                        icon = "HIDE_ON"
-                    split.prop(wm, "viewPaintVectors", text = "", toggle = True, icon = icon)
+                    split = row.split(align = True)
+                    split.scale_x = 0.825
+                    split.prop(wm, "paintLayer", text = "Layer")
+                    split = row.split(align = True)
+                    split.alert = (wm.viewPaintMode != "OFF")
+                    split.prop(wm, "viewPaintMode", text = "")
                     
                     row = layout.row(align=True)
                     row.label(text="Operation:")
                     row.enabled = wm.clothPaintingMode
                     row.prop_enum(wm, "paintMode", 'Draw')
                     row.prop_enum(wm, "paintMode", 'Smooth')
-                    brush_name = context.tool_settings.weight_paint.brush.name
-                    if brush_name == 'Paint' and wm.paintMode != 'Draw':
+                    brush_type = bpy.context.tool_settings.weight_paint.brush.weight_brush_type
+                    if brush_type == 'DRAW' and wm.paintMode != 'Draw':
                         wm.paintMode = 'Draw'
-                    elif brush_name == 'Blur' and wm.paintMode != 'Smooth':
+                    elif brush_type == 'BLUR' and wm.paintMode != 'Smooth':
                         wm.paintMode = 'Smooth'
                              
                     if wm.paintMode != 'Smooth':
                         row = layout.row()
                         row.enabled = wm.clothPaintingMode
-                        row.prop(wm, "paintValue", text = "Value")
-                        if wm.paintValue != paint_settings.weight:
-                            wm.paintValue = paint_settings.weight
+                        if wm.paintLayer != 'PhysXBackstopDistance':
+                            row.prop(wm, "paintValue", text = "Value")
+                            if wm.paintValue != paint_settings.weight:
+                                wm.paintValue = paint_settings.weight
+                        else:
+                            row.prop(wm, "paintValueBackstopDistance", text = "Value")
+                            if wm.paintValueBackstopDistance != (paint_settings.weight - 0.5) * 2:
+                                wm.paintValueBackstopDistance = (paint_settings.weight - 0.5) * 2
                         
-                
                 else:
+                    row.prop(wm, "paintLayer", text = "Layer")
                     row = layout.row()
                     row.enabled = wm.clothPaintingMode
                     row.prop(wm, "driveLatchGroup", text = "Group") 
@@ -185,6 +192,11 @@ class PhysXPaintingPanel(bpy.types.Panel):
                         wm.paintModeDriveLatch = 'Remove'
                     elif wm.paintModeDriveLatch == 'Remove' and paint_settings.weight > 0:
                         wm.paintModeDriveLatch = 'Add'
+                        
+                if active_name in ['PhysXMaximumDistance', 'PhysXBackstopRadius', 'PhysXBackstopDistance'] and wm.paintLayer != active_name:
+                    wm.paintLayer = active_name
+                elif re.search(r"PhysX(Drive|Latch)[0-9]+", active_name) and wm.paintLayer != 'Drive/Latch':
+                    wm.paintLayer = 'Drive/Latch'
                         
                 row = layout.row()
                 row.enabled = wm.clothPaintingMode
@@ -220,8 +232,11 @@ def updateClothPaintingMode(self, context):
     vgroups = applyDriveLatch(obj)
     mode = context.mode
     view_prefs = context.preferences.view
-    bpy.ops.physx.delete_bake_data()
     if self.clothPaintingMode:
+        if context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame=False)
+        context.scene.frame_set(0)
+        bpy.ops.physx.delete_bake_data()
         self.previousMode = mode
         bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
         view_prefs.use_weight_color_range = True
@@ -230,27 +245,33 @@ def updateClothPaintingMode(self, context):
         obj.show_wire = True
         
         if self.paintLayer != 'Drive/Latch':
-            setCustomWeightPalette('DEFAULT')
             vgroups.active_index = vgroups[self.paintLayer].index
             if self.paintMode == 'Draw':
                 bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Paint")
                 w_brush = context.tool_settings.weight_paint.brush
-                w_brush.weight_tool = 'DRAW'
-                w_brush.curve_preset = 'CONSTANT'
-                context.scene.tool_settings.unified_paint_settings.weight = self.paintValue
+                w_brush.weight_brush_type = 'DRAW'
+                w_brush.curve_distance_falloff_preset = 'CONSTANT'
+                w_brush.blend = 'MIX'
+                context.scene.tool_settings.weight_paint.unified_paint_settings.weight = self.paintValue
             else:
                 bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Blur")
                 w_brush = context.tool_settings.weight_paint.brush
-                w_brush.weight_tool = 'BLUR'
-                w_brush.curve_preset = 'CONSTANT'
+                w_brush.weight_brush_type = 'BLUR'
+                w_brush.curve_distance_falloff_preset = 'CONSTANT'
                 bpy.data.brushes['Blur'].strength = 1
-            context.scene.tool_settings.unified_paint_settings.size = self.paintRadius
-            if self.viewPaintVectors:
-                PhysXDisplayPaintVectors.handle_add(PhysXDisplayPaintVectors, context)
+            context.scene.tool_settings.weight_paint.unified_paint_settings.size = self.paintRadius
+            if self.viewPaintMode != "OFF":
+                PhysXDisplayPaint.handle_add(PhysXDisplayPaint, context)
+            if self.paintLayer != 'PhysXBackstopDistance':
+                setCustomWeightPalette('DEFAULT')
+            else:
+                setCustomWeightPalette('BACKSTOP_DISTANCE')
+                if self.paintMode == 'Draw':
+                    context.scene.tool_settings.weight_paint.unified_paint_settings.weight = self.paintValueBackstopDistance * 0.5 + 0.5
             
         else:
             setCustomWeightPalette('DRIVE/LATCH')
-            PhysXDisplayPaintVectors.handle_remove(PhysXDisplayPaintVectors, context)
+            PhysXDisplayPaint.handle_remove(PhysXDisplayPaint, context)
             if self.driveLatchMode == 'Drive':
                 vgroups.active_index = vgroups["PhysXDrive"+self.driveLatchGroup[5:]].index
             else:
@@ -258,7 +279,7 @@ def updateClothPaintingMode(self, context):
             updatePaintModeDriveLatch(self, context)
             
     else:
-        PhysXDisplayPaintVectors.handle_remove(PhysXDisplayPaintVectors, context)
+        PhysXDisplayPaint.handle_remove(PhysXDisplayPaint, context)
         view_prefs.use_weight_color_range = False
         obj.show_wire = False
         if mode == 'PAINT_WEIGHT': 
@@ -268,37 +289,49 @@ def updateClothPaintingMode(self, context):
 def updatePaintLayer(self, context):
     vgroups = applyDriveLatch(context.active_object)
     if self.paintLayer != 'Drive/Latch':
-        setCustomWeightPalette('DEFAULT')
+        if self.paintLayer != 'PhysXBackstopDistance':
+            setCustomWeightPalette('DEFAULT')
+        else:
+            setCustomWeightPalette('BACKSTOP_DISTANCE')
         vgroups.active_index = vgroups[self.paintLayer].index
-        if self.viewPaintVectors:
-            PhysXDisplayPaintVectors.handle_add(PhysXDisplayPaintVectors, context)
+        if self.viewPaintMode != "OFF":
+            PhysXDisplayPaint.handle_add(PhysXDisplayPaint, context)
     else:
         setCustomWeightPalette('DRIVE/LATCH')
-        PhysXDisplayPaintVectors.handle_remove(PhysXDisplayPaintVectors, context)
+        PhysXDisplayPaint.handle_remove(PhysXDisplayPaint, context)
         vgroups.active_index = vgroups["PhysX" + self.driveLatchMode + self.driveLatchGroup[5:]].index
         updatePaintModeDriveLatch(self, context)
         
-def updateViewPaintVectors(self, context):
-    PhysXDisplayPaintVectors.execute(PhysXDisplayPaintVectors, context)
+def updateViewPaintMode(self, context):
+    PhysXDisplayPaint.handle_remove(PhysXDisplayPaint, context)
+    PhysXDisplayPaint.execute(PhysXDisplayPaint, context)
     
 def updatePaintMode(self, context):
     if self.paintMode == 'Draw':
         bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Paint")
         w_brush = context.tool_settings.weight_paint.brush
-        w_brush.weight_tool = 'DRAW'
-        w_brush.curve_preset = 'CONSTANT'
+        w_brush.weight_brush_type = 'DRAW'
+        w_brush.curve_distance_falloff_preset = 'CONSTANT'
+        w_brush.blend = 'MIX'
+        if self.paintLayer != 'PhysXBackstopDistance':
+            context.scene.tool_settings.weight_paint.unified_paint_settings.weight = self.paintValue
+        else:
+            context.scene.tool_settings.weight_paint.unified_paint_settings.weight = self.paintValueBackstopDistance * 0.5 + 0.5
     else:
         bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Blur")
         w_brush = context.tool_settings.weight_paint.brush
-        w_brush.weight_tool = 'BLUR'
-        w_brush.curve_preset = 'CONSTANT'
+        w_brush.weight_brush_type = 'BLUR'
+        w_brush.curve_distance_falloff_preset = 'CONSTANT'
         bpy.data.brushes['Blur'].strength = 1
         
 def updatePaintValue(self, context):
-    context.scene.tool_settings.unified_paint_settings.weight = self.paintValue
+    context.scene.tool_settings.weight_paint.unified_paint_settings.weight = self.paintValue
+    
+def updatePaintValueBackstopDistance(self, context):
+    context.scene.tool_settings.weight_paint.unified_paint_settings.weight = self.paintValueBackstopDistance * 0.5 + 0.5
     
 def updatePaintRadius(self, context):
-    context.scene.tool_settings.unified_paint_settings.size = self.paintRadius
+    context.scene.tool_settings.weight_paint.unified_paint_settings.size = self.paintRadius
     
 def getDriveLatchGroups(self, context):
     groups = []
@@ -342,12 +375,13 @@ def updateDriveLatchGroup(self, context):
 def updatePaintModeDriveLatch(self, context):
     bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS', asset_library_identifier="", relative_asset_identifier="brushes\\essentials_brushes-mesh_weight.blend\\Brush\\Paint")
     w_brush = context.tool_settings.weight_paint.brush
-    w_brush.weight_tool = 'DRAW'
-    w_brush.curve_preset = 'CONSTANT'
+    w_brush.weight_brush_type = 'DRAW'
+    w_brush.curve_distance_falloff_preset = 'CONSTANT'
+    w_brush.blend = 'MIX'
     if self.paintModeDriveLatch == 'Add':
-        context.scene.tool_settings.unified_paint_settings.weight = 1
+        context.scene.tool_settings.weight_paint.unified_paint_settings.weight = 1
     else: 
-        context.scene.tool_settings.unified_paint_settings.weight = 0
+        context.scene.tool_settings.weight_paint.unified_paint_settings.weight = 0
         
 PROPS_Painting_Panel = [
 ('maximumMaxDistance', FloatProperty(
@@ -374,10 +408,16 @@ PROPS_Painting_Panel = [
         ),
         update=updatePaintLayer
     )),
-('viewPaintVectors', BoolProperty(
-        name="Visualize Paint Vectors",
-        default = False,
-        update = updateViewPaintVectors
+('viewPaintMode', EnumProperty(
+        name="Visualize Paint",
+        description="Set the Paint Visualization Mode",
+        default='OFF',
+        items=(
+        ('OFF', "", "Disable Paint Visualization",  "HIDE_ON", 0),
+        ('VECTOR', "", "Enable Paint Visualization with Vectors", "IPO_LINEAR", 1),
+        ('SPHERE', "", "Enable Paint Visualization with Spheres",  "MESH_CIRCLE", 2)
+        ),
+        update=updateViewPaintMode
     )),
 ('paintMode', EnumProperty(
         name="Active Paint Mode",
@@ -398,6 +438,15 @@ PROPS_Painting_Panel = [
         precision=6,
         update=updatePaintValue
     )),
+('paintValueBackstopDistance', FloatProperty(
+    name="Paint Backstop Distance Value",
+    description="Set the Backstop Distance Paint Value",
+    default=0,
+    min=-1,
+    max=1,
+    precision=6,
+    update=updatePaintValueBackstopDistance
+)),
 ('paintRadius', IntProperty(
         name="Radius Value",
         description="Set the Radius of the Brush",
@@ -447,4 +496,4 @@ PROPS_Painting_Panel = [
     ))
 ]
 
-CLASSES_Painting_Panel = [SmoothAll, FloodAll, CopyMaxDistance, PhysXDisplayPaintVectors, PhysXPaintingPanel]
+CLASSES_Painting_Panel = [SmoothAll, FloodAll, CopyMaxDistance, PhysXDisplayPaint, PhysXPaintingPanel]
