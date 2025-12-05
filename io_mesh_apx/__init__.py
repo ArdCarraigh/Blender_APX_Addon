@@ -4,7 +4,7 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx/.apb)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (6, 0, 0),
+    "version": (6, 0, 1),
     "blender": (5, 0, 0),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
@@ -39,7 +39,7 @@ class APXAddonPreferences(AddonPreferences):
 
     apex_sdk_cli: StringProperty(
         name="Apex SDK 1.3.0 CLI",
-        subtype='DIR_PATH',
+        subtype='FILE_PATH',
         default="D:/Witcher3Modding/ApexCloth/1.3.1/bin/vc10win32-PhysX_3.3/ParamToolPROFILE.exe",
         description="Path to the Apex SDK Command-Line Interface .exe"
     )

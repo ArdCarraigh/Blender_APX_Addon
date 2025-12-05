@@ -389,7 +389,7 @@ def getWeightArray(verts, vg):
             weights.append(vg.weight(i))
         except:
             weights.append(0)
-    return np.array(weights)
+    return np.array(weights, dtype = 'float64')
 
 def simValueType(type):
     match type:
