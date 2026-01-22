@@ -121,9 +121,10 @@ def write_clothing(context, filepath, apply_modifiers):
         duplicate_obj = bpy.context.active_object
         duplicate_obj.name = "tempGraphicalMesh"
         #Apply modifiers
-        for mod in duplicate_obj.modifiers:
-            if mod.type != 'ARMATURE' and mod.name != 'ClothSimulation':
-                bpy.ops.object.modifier_apply(modifier = mod.name)
+        if apply_modifiers:
+            for mod in duplicate_obj.modifiers:
+                if mod.type != 'ARMATURE' and mod.name != 'ClothSimulation':
+                    bpy.ops.object.modifier_apply(modifier = mod.name)
         applyTransforms(duplicate_obj, armaScale, armaRot, armaLoc)
         TriangulateActiveMesh()
         deleteIsolatedVertices(duplicate_obj)
@@ -625,7 +626,7 @@ def write_clothing(context, filepath, apply_modifiers):
             spherePositions = []
             subCapsules = []
             for subCapsule in capsules:
-                if capsule.name in subCapsule.name:
+                if re.sub(r'\.[0-9]*$', '', capsule.name) in subCapsule.name:
                     subCapsules.append(subCapsule)
                     if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
                         sphereLocation, sphereRadius = applyTransforms(subCapsule, armaScale, armaRot, armaLoc, True, half = True)
