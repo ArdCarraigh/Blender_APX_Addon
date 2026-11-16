@@ -4,7 +4,7 @@
 bl_info = {
     "name": "APX Importer/Exporter (.apx/.apb)",
     "author": "Ard Carraigh & Aaron Thompson",
-    "version": (6, 0, 2),
+    "version": (6, 0, 3),
     "blender": (5, 0, 0),
     "location": "File > Import-Export",
     "description": "Import and export .apx meshes",
@@ -32,7 +32,7 @@ from io_mesh_apx.ui.cloth_sim_panel import PROPS_ClothSimulation_Panel, CLASSES_
 from io_mesh_apx.ui.hair_pin_panel import PROPS_HairPin_Panel, CLASSES_HairPin_Panel
 from io_mesh_apx.ui.hair_tools_panel import PROPS_HairTools_Panel, CLASSES_HairTools_Panel
 from io_mesh_apx.ui.hair_mat_panel import PROPS_HairMaterial_Panel, CLASSES_HairMaterial_Panel
-from io_mesh_apx.utils import getNumberHairVerts, GetCollection
+from io_mesh_apx.utils import getNumberHairVerts, GetCollection, PrepareScene
 
 class APXAddonPreferences(AddonPreferences):
     bl_idname = __package__
@@ -100,12 +100,7 @@ class ImportApx(Operator, ImportHelper):
                 box.prop(self, prop)
                 
     def execute(self, context):
-        # Should work from all modes
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
-        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
-        
+        PrepareScene()
         # Convert to .apx if necessary
         if os.path.splitext(os.path.basename(self.filepath))[1] == ".apb":
             apex_path = bpy.context.preferences.addons[__package__].preferences.apex_sdk_cli
@@ -190,12 +185,7 @@ class ExportApx(Operator, ExportHelper):
                 box_row.prop(self, "apply_modifiers")
 
     def execute(self, context):
-        context.scene.frame_set(0)
-        # Should work from all modes
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
-        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        PrepareScene()
         main_coll = GetCollection(make_active=False)
         
         if "PhysXAssetType" in main_coll:

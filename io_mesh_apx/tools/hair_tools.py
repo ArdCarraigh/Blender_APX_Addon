@@ -138,7 +138,7 @@ def shape_hair_interp(context, growthMesh, collection, steps = 0, threshold = 0.
         part = growthMesh2.particle_systems[-1].particles[i]
         vert_co = np.array(vert.co)
         # No interpolation for close curve
-        closestCurveIndex = getClosest(vert_co, kd, threshold)
+        closestCurveIndex = getClosest(vert_co, kd, threshold, False)
         if closestCurveIndex is None and not steps:
             closestCurveIndex = getClosest(vert_co, kd)
         if closestCurveIndex is not None:

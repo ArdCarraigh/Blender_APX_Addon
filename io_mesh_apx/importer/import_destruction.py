@@ -86,7 +86,7 @@ def read_destruction(context, filepath, rotate_180):
         faces = to_array(faces_text, int, [-1, 3])
 
         # Add the mesh to the scene
-        mesh = bpy.data.meshes.new(name="GMesh")
+        mesh = bpy.data.meshes.new(name = "GMesh")
         mesh.from_pydata(vertices, [], list(faces))
         obj = object_data_add(context, mesh)
         mesh.shade_smooth()
@@ -152,7 +152,7 @@ def read_destruction(context, filepath, rotate_180):
         bpy.ops.object.mode_set(mode='OBJECT')
         chunk_mesh = bpy.context.selected_objects[-1]
         if not i:
-            chunk_mesh.name = "Base_Mesh"
+            chunk_mesh.name = file_name + "_base"
         else:
             chunk_mesh.name = "Chunk"+str(i)
             chunk_coll.objects.link(chunk_mesh)

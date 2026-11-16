@@ -3,8 +3,35 @@
 
 import bpy
 import numpy as np
-from bpy.props import BoolProperty, FloatProperty, IntProperty, IntVectorProperty
-from io_mesh_apx.utils import GetCollection, GetWind, GetArmature
+from bpy.types import Operator
+from bpy.props import BoolProperty, FloatProperty, IntProperty, IntVectorProperty, EnumProperty
+from io_mesh_apx.utils import GetCollection, GetArmature, getClothAssets
+from io_mesh_apx.tools.cloth_tools import copyClothSimulation
+
+class CopyClothSimulation(Operator):
+    """Copy simulation parameters from another clothing asset"""
+    bl_idname = "physx.copy_cloth_simulation"
+    bl_label = "Copy simulation parameters from another clothing asset"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "collection"
+    
+    collection: EnumProperty(
+        options={'HIDDEN'},
+        name="Clothing Assets",
+        items=getClothAssets
+    )
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        copyClothSimulation(context, self.collection)
+        return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
     
 class PhysXClothSimulationPanel(bpy.types.Panel):
     bl_idname = 'VIEW3D_PT_PhysX_cloth_sim_panel'
@@ -22,6 +49,10 @@ class PhysXClothSimulationPanel(bpy.types.Panel):
         if physx.PhysXSubPanel == 'cloth_sim':
             main_coll = GetCollection(make_active=False)
             if main_coll:
+                
+                row = layout.row()
+                row.operator(CopyClothSimulation.bl_idname, text = "Copy Simulation Parameters", icon = 'COPYDOWN')
+                layout.separator()
                 
                 row = layout.row()
                 box = row.box()
@@ -258,4 +289,4 @@ PROPS_ClothSimulation_Panel = [
     ))
 ]
 
-CLASSES_ClothSimulation_Panel = [PhysXClothSimulationPanel]
+CLASSES_ClothSimulation_Panel = [CopyClothSimulation, PhysXClothSimulationPanel]

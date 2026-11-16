@@ -47,7 +47,9 @@ class CopyMaxDistance(Operator):
     
     def execute(self, context):
         obj = context.active_object
-        copyMaxDistance(context, obj)
+        vgroups = obj.vertex_groups
+        group_name = vgroups[vgroups.active_index].name
+        copyMaxDistance(context, obj, group_name)
         return {'FINISHED'}
     
 class PhysXDisplayPaint(Operator):
@@ -214,7 +216,7 @@ class PhysXPaintingPanel(bpy.types.Panel):
                     row.enabled = wm.clothPaintingMode
                     row.operator(FloodAll.bl_idname, text="Flood All", icon='IMAGE')
                 
-                if wm.paintLayer == 'PhysXBackstopDistance' and wm.paintMode == 'Draw':
+                if wm.paintLayer in ['PhysXBackstopDistance', 'PhysXBackstopRadius'] and wm.paintMode == 'Draw':
                     row = layout.row()
                     row.enabled = wm.clothPaintingMode
                     row.operator(CopyMaxDistance.bl_idname, text="Copy Maximum Distance", icon='DRIVER_DISTANCE')
@@ -380,8 +382,10 @@ def updatePaintModeDriveLatch(self, context):
     w_brush.blend = 'MIX'
     if self.paintModeDriveLatch == 'Add':
         context.scene.tool_settings.weight_paint.unified_paint_settings.weight = 1
+        self.paintValue = 1
     else: 
         context.scene.tool_settings.weight_paint.unified_paint_settings.weight = 0
+        self.paintValue = 0
         
 PROPS_Painting_Panel = [
 ('maximumMaxDistance', FloatProperty(

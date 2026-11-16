@@ -7,7 +7,7 @@ import numpy as np
 from bpy_extras.object_utils import object_data_add
 from mathutils import Vector
 from copy import deepcopy
-from io_mesh_apx.utils import JoinThem, applyTransforms, selectOnly, GetCollection, ImportTemplates, GetArmature, getWeightArray, addOptimisedCollisionSphere
+from io_mesh_apx.utils import JoinThem, applyTransforms, selectOnly, GetCollection, ImportTemplates, GetArmature, getWeightArray, addOptimisedCollisionSphere, PurgeOrphanData
 
 def add_sphere(context, bone, radius, location, use_location, set_sim = False):
     collision_coll = GetCollection("Collision Spheres", True)
@@ -300,6 +300,7 @@ def generateRagdoll(context, object):
                         add_connection(bpy.context, [spheres[-1], bpy.data.objects[parent_object[0]]])
                         
 def mirrorRagdoll(context, pattern, replacement, axis):
+    PurgeOrphanData()
     sphere_coll = GetCollection("Collision Spheres", False, False)
     connection_coll = GetCollection("Collision Connections", False, False)
     capsule_coll = GetCollection("Collision Capsules", False, False)
@@ -307,77 +308,90 @@ def mirrorRagdoll(context, pattern, replacement, axis):
     
     if sphere_coll:
         spheres = sphere_coll.objects
-        num_spheres = len(spheres)
-        sphere_names = [x.name[x.name.find("_")+1:x.name.rfind("_")] for x in spheres]
-        for i in range(num_spheres):
-            bone_name = sphere_names[i]
-            if re.search(pattern, bone_name):
-                new_name = re.sub(pattern, replacement, bone_name)
-                sphere = spheres[i]
-                new_sphere_name = re.sub(pattern, replacement, sphere.name)
-                if not any([re.search(new_sphere_name, x.name) for x in spheres]):
-                    sphereLocation, sphereRadius = applyTransforms(sphere, np.array(arma.scale), np.array(arma.rotation_euler), np.array(arma.location), True)
-                    match axis:
-                        case 'X':
-                            sphereLocation[0] = -sphereLocation[0]
-                        case 'Y':
-                            sphereLocation[1] = -sphereLocation[1]
-                        case 'Z':
-                            sphereLocation[2] = -sphereLocation[2]
-                    add_sphere(context, new_name, sphereRadius, sphereLocation, True)
+        for sphere in spheres:
+            sphere_name = sphere.name
+            match1 = sphere_name.find("_")
+            match2 = sphere_name.rfind("_")
+            prefix = sphere_name[:match1]
+            suffix = sphere_name[match2 + 1:]
+            bone_name = sphere_name[match1 + 1:match2]
+            new_bone_name = re.sub(pattern, replacement, bone_name)
+            if not any([re.search("_".join([prefix, new_bone_name, suffix]), x.name) for x in spheres]):
+                sphereLocation, sphereRadius = applyTransforms(sphere, np.array(arma.scale), np.array(arma.rotation_euler), np.array(arma.location), True)
+                match axis:
+                    case 'X':
+                        sphereLocation[0] = -sphereLocation[0]
+                    case 'Y':
+                        sphereLocation[1] = -sphereLocation[1]
+                    case 'Z':
+                        sphereLocation[2] = -sphereLocation[2]
+                add_sphere(context, new_bone_name, sphereRadius, sphereLocation, True)
                 
     if connection_coll:
         connections = connection_coll.objects
-        num_connections = len(connections)
-        for i in range(num_connections):
-            connection_name = connections[i].name
-            new_connection_name = re.sub(pattern, replacement, connection_name)
-            if not any([re.search(new_connection_name, x.name) for x in connections]):
-                sphereName1 = connection_name[:connection_name.find("_to_")]
-                sphereName2 = connection_name[connection_name.find("_to_")+4:]
-                if re.search(pattern, sphereName1) or re.search(pattern, sphereName2):
-                    add_connection(bpy.context, [bpy.data.objects[re.sub(pattern, replacement, sphereName1)], bpy.data.objects[re.sub(pattern, replacement, sphereName2)]])
+        for connection in connections:
+            connection_name = connection.name
+            sphereName1 = connection_name[:connection_name.find("_to_")]
+            match1 = sphereName1.find("_")
+            match2 = sphereName1.rfind("_")
+            prefix1 = sphereName1[:match1]
+            suffix1 = sphereName1[match2 + 1:]
+            bone_name1 = sphereName1[match1 + 1:match2]
+            new_bone_name1 = re.sub(pattern, replacement, bone_name1)
+            new_sphere_name1 = "_".join([prefix1, new_bone_name1, suffix1])
+            sphereName2 = connection_name[connection_name.find("_to_")+4:]
+            match3 = sphereName2.find("_")
+            match4 = sphereName2.rfind("_")
+            prefix2 = sphereName2[:match3]
+            suffix2 = sphereName2[match4 + 1:]
+            bone_name2 = sphereName2[match3 + 1:match4]
+            new_bone_name2 = re.sub(pattern, replacement, bone_name2)
+            new_sphere_name2 = "_".join([prefix2, new_bone_name2, suffix2])
+            new_connection_name = new_sphere_name1 + "_to_" + new_sphere_name2
+            new_connection_name_alt = new_sphere_name2 + "_to_" + new_sphere_name1
+            if not any([re.search(new_connection_name, x.name) or re.search(new_connection_name_alt, x.name) for x in connections]):
+                add_connection(context, [bpy.data.objects[new_sphere_name1], bpy.data.objects[new_sphere_name2]])
                  
     if capsule_coll:
         capsules = capsule_coll.objects
-        num_capsules = len(capsules)
-        capsule_names = [x.name[x.name.find("_")+1:x.name.rfind("_")] for x in capsules]
-        for i in range(num_capsules):
-            bone_name = capsule_names[i]
-            if re.search(pattern, bone_name):
-                new_name = re.sub(pattern, replacement, bone_name)
-                capsule = capsules[i]
-                new_capsule_name = re.sub(pattern, replacement, capsule.name)
-                if not any([re.search(new_capsule_name, x.name) for x in capsules]):
-                    selectOnly(capsule)
-                    bpy.ops.mesh.separate(type='MATERIAL')
-                    spherePositions = []
-                    subCapsules = []
-                    for subCapsule in capsules:
-                        if capsule.name in subCapsule.name:
-                            subCapsules.append(subCapsule)
-                            if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
-                                sphereLocation, sphereRadius = applyTransforms(subCapsule, np.array(arma.scale), np.array(arma.rotation_euler), np.array(arma.location), True, half = True)
-                                spherePositions.append(sphereLocation)    
-                    JoinThem(subCapsules)
-                    capsuleDir = spherePositions[0] - spherePositions[1]
-                    capsuleHeight = np.linalg.norm(capsuleDir)
-                    capsulePosition = np.mean(spherePositions, axis = 0)
-                    capsuleRotation = Vector((0,-capsuleHeight,0)).rotation_difference(capsuleDir).to_euler()
-                    match axis:
-                        case 'X':
-                            capsulePosition[0] = -capsulePosition[0]
-                            capsuleRotation[2] = capsuleRotation[2] + 2 * (2 * np.pi - capsuleRotation[2])
-                            capsuleRotation[1] = capsuleRotation[1] + 2 * (2 * np.pi - capsuleRotation[1])
-                        case 'Y':
-                            capsulePosition[1] = -capsulePosition[1]
-                            capsuleRotation[2] = capsuleRotation[2] + 2 * (2 * np.pi - capsuleRotation[2])
-                            capsuleRotation[0] = capsuleRotation[0] + 2 * (2 * np.pi - capsuleRotation[0])
-                        case 'Z':
-                            capsulePosition[2] = -capsulePosition[2]
-                            capsuleRotation[1] = capsuleRotation[1] + 2 * (2 * np.pi - capsuleRotation[1])
-                            capsuleRotation[0] = capsuleRotation[0] + 2 * (2 * np.pi - capsuleRotation[0])
-                    add_capsule(context, new_name, sphereRadius, capsuleHeight, capsulePosition, capsuleRotation, True)
+        for capsule in capsules:
+            capsule_name = capsule.name
+            match1 = capsule_name.find("_")
+            match2 = capsule_name.rfind("_")
+            prefix = capsule_name[:match1]
+            suffix = capsule_name[match2 + 1:]
+            bone_name = capsule_name[match1 + 1:match2]
+            new_bone_name = re.sub(pattern, replacement, bone_name)
+            if not any([re.search("_".join([prefix, new_bone_name, suffix]), x.name) for x in capsules]):
+                selectOnly(capsule)
+                bpy.ops.mesh.separate(type='MATERIAL')
+                spherePositions = []
+                subCapsules = []
+                for subCapsule in capsules:
+                    if capsule.name in subCapsule.name:
+                        subCapsules.append(subCapsule)
+                        if "Material_Sphere1" in subCapsule.data.materials or "Material_Sphere2" in subCapsule.data.materials:
+                            sphereLocation, sphereRadius = applyTransforms(subCapsule, np.array(arma.scale), np.array(arma.rotation_euler), np.array(arma.location), True, half = True)
+                            spherePositions.append(sphereLocation)    
+                JoinThem(subCapsules)
+                capsuleDir = spherePositions[0] - spherePositions[1]
+                capsuleHeight = np.linalg.norm(capsuleDir)
+                capsulePosition = np.mean(spherePositions, axis = 0)
+                capsuleRotation = Vector((0,-capsuleHeight,0)).rotation_difference(capsuleDir).to_euler()
+                match axis:
+                    case 'X':
+                        capsulePosition[0] = -capsulePosition[0]
+                        capsuleRotation[2] = capsuleRotation[2] + 2 * (2 * np.pi - capsuleRotation[2])
+                        capsuleRotation[1] = capsuleRotation[1] + 2 * (2 * np.pi - capsuleRotation[1])
+                    case 'Y':
+                        capsulePosition[1] = -capsulePosition[1]
+                        capsuleRotation[2] = capsuleRotation[2] + 2 * (2 * np.pi - capsuleRotation[2])
+                        capsuleRotation[0] = capsuleRotation[0] + 2 * (2 * np.pi - capsuleRotation[0])
+                    case 'Z':
+                        capsulePosition[2] = -capsulePosition[2]
+                        capsuleRotation[1] = capsuleRotation[1] + 2 * (2 * np.pi - capsuleRotation[1])
+                        capsuleRotation[0] = capsuleRotation[0] + 2 * (2 * np.pi - capsuleRotation[0])
+                add_capsule(context, new_bone_name, sphereRadius, capsuleHeight, capsulePosition, capsuleRotation, True)
                     
 def lexarRagdoll(context, collection):
     main_coll = GetCollection(make_active = False)

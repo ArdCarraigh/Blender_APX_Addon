@@ -365,21 +365,24 @@ def write_clothing(context, filepath, apply_modifiers):
                 # Initialise Buffer Formats
                 bufferFormats = [templateVertexPositionBuffer, templateVertexNormalBuffer, templateVertexTangentBuffer]
                 
-                # Get Vertex Color
-                for layer in mesh.color_attributes:
-                    if layer.domain == 'CORNER':
+                # Get Active Vertex Color # .apx doesn't seem to support multiple color layers
+                if mesh.color_attributes:
+                    if mesh.color_attributes.active_color:
+                        layer = mesh.color_attributes.active_color
+                    else:
+                        layer = mesh.color_attributes[0]
                         mesh.color_attributes.active_color = layer
-                        bpy.ops.geometry.color_attribute_convert(domain='POINT', data_type='FLOAT_COLOR')
+                    if layer.domain == 'CORNER':
+                        bpy.ops.geometry.color_attribute_convert(domain='POINT', data_type='BYTE_COLOR')
                         layer = mesh.color_attributes.active_color
                     vcol = np.zeros(n_vertices * 4)
                     layer.data.foreach_get("color", vcol)
                     # Write Vertex Color Buffer
                     kwargs_vcol = {}
-                    kwargs_vcol['numData'] = len(vcol)
-                    kwargs_vcol['arrayData'] = ','.join([' '.join(map(str, map(int, x))) for x in (vcol * 255).reshape(-1,4)])
+                    kwargs_vcol['numData'] = n_vertices
+                    kwargs_vcol['arrayData'] = ','.join([' '.join(map(str, map(round, x))) for x in (vcol * 255).reshape(-1,4)])
                     bufferData.append(templateDataColor.format(**kwargs_vcol))
                     bufferFormats.append(templateVertexColorBuffer)
-                    break
                     
                 # Get UV Maps
                 semantic = 5
@@ -575,7 +578,7 @@ def write_clothing(context, filepath, apply_modifiers):
     
     # General Bounding Box
     boundingBox = np.array(boundingBoxes).T
-    generalBoundingBox = [min(x) if any(y<0 for y in x) else max(x) for x in boundingBox]
+    generalBoundingBox = [min(x) if xi < 3 else max(x) for xi, x in enumerate(boundingBox)]
     kwargs['boundingBox'] = ' '.join(str(x) for x in generalBoundingBox)
     
     # Bone Spheres

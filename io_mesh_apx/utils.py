@@ -28,6 +28,13 @@ def find_elem(root, tag, attr=None, attr_value=None):
 def to_array(text, dtype, shape):
     return(np.array([dtype(x) for x in text.replace(',', ' ').split()]).reshape(shape))
 
+def PurgeOrphanData():
+    override = bpy.context.copy()
+    override["area.type"] = ['OUTLINER']
+    override["display_mode"] = ['ORPHAN_DATA']
+    with bpy.context.temp_override(**override):
+        bpy.ops.outliner.orphans_purge()
+
 def JoinThem(objects):
     bpy.context.view_layer.objects.active = None
     bpy.ops.object.select_all(action='DESELECT')
@@ -36,11 +43,7 @@ def JoinThem(objects):
         obj.select_set(state=True)
     bpy.ops.object.join()
     # Purge orphan data left by the joining
-    override = bpy.context.copy()
-    override["area.type"] = ['OUTLINER']
-    override["display_mode"] = ['ORPHAN_DATA']
-    with bpy.context.temp_override(**override):
-        bpy.ops.outliner.orphans_purge()
+    PurgeOrphanData()
     
 def getConnectedVertices(obj, v_idx, steps):
     interest_verts = [v_idx]
@@ -67,15 +70,17 @@ def MakeKDTree(veclist, indices = None):
     kd.balance()
     return kd
 
-def getClosest(vec, kd, range = None):
+def getClosest(vec, kd, range = None, find_beyond_range = True):
     if range:
         index = np.array([x[1:] for x in kd.find_range(vec, range)], dtype="object")
         if index.size > 2:
             index = index[:,0][index[:,1].argmin()]
         elif index.size > 1:
             index = index[0][0]
-        else:
+        elif find_beyond_range:
             co, index, dist = kd.find(vec)
+        else:
+            return None
     else:
         co, index, dist = kd.find(vec)
     return index
@@ -97,7 +102,7 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
     corner_verts.foreach_get("value", corner_verts_array)
     loops = mesh.loops
     data = [[] for i in range(len(mesh.vertices))]
-    
+
     match type:
         case "NORMAL": 
             data_array = np.zeros(len(loops) * 3)
@@ -256,6 +261,7 @@ def SplitMesh(mesh):
     
 def TriangulateActiveMesh():
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='VERT')
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.mesh.quads_convert_to_tris(quad_method='SHORTEST_DIAGONAL', ngon_method='BEAUTY')
     bpy.ops.mesh.select_all(action="DESELECT")
@@ -694,6 +700,24 @@ def getPhysXAssets(self, context):
             colls.append((coll.name, coll.name, ""))
     return colls
 
+def getClothAssets(self, context):
+    main_coll = GetCollection(make_active=False)
+    colls = []
+    for coll in bpy.data.collections:
+        if coll != main_coll and "PhysXAssetType" in coll and coll['PhysXAssetType'] == 'Clothing':
+            colls.append((coll.name, coll.name, ""))
+    return colls
+
+def getClothMeshes(self, context):
+    main_obj = bpy.context.active_object
+    objects = []
+    for coll in bpy.data.collections:
+        if "PhysXAssetType" in coll and coll['PhysXAssetType'] == 'Clothing':
+            for obj in coll.objects:
+                if obj.type == "MESH" and obj != main_obj and obj.parent and obj.parent.type == 'ARMATURE':
+                    objects.append((obj.name, obj.name, ""))
+    return objects
+
 def addOptimisedCollisionSphere(radius = 1, location = (0,0,0), rotation = (0,0,0), half = False):
     verts = np.array(templateSphereVertices)
     verts *= radius
@@ -708,3 +732,11 @@ def addOptimisedCollisionSphere(radius = 1, location = (0,0,0), rotation = (0,0,
     obj.location = location
     obj.rotation_euler = rotation
     return obj
+
+def PrepareScene():
+    bpy.context.scene.frame_set(0)
+    # Should work from all modes
+    if bpy.context.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+    bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)

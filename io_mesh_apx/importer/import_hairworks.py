@@ -50,7 +50,7 @@ def read_hairworks(context, filepath, rotate_180):
     assert(len(boneParents) == numBones)
     
     # Create Armature
-    skeleton = bpy.data.armatures.new(name="Armature")
+    skeleton = bpy.data.armatures.new(name = file_name + "_ARM")
     arma = object_data_add(context, skeleton)
     # Edit mode required to add bones to the armature
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -138,7 +138,7 @@ def read_hairworks(context, filepath, rotate_180):
     assert(len(faceUVs) == numFaces * 6)  
     
     # Add the growthmesh to the scene
-    growth_mesh = bpy.data.meshes.new(name="GrowthMesh")
+    growth_mesh = bpy.data.meshes.new(name = file_name + "_growthmesh")
     growth_mesh.from_pydata(growth_verts, [], list(faceIndices))
     obj = object_data_add(context, growth_mesh)
     growth_mesh.shade_smooth()

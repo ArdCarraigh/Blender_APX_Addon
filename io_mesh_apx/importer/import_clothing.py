@@ -51,7 +51,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
     
     boneNames = []
     boneParents = []
-    skeleton = bpy.data.armatures.new(name="Armature")
+    skeleton = bpy.data.armatures.new(name = file_name + "_ARM")
     arma = object_data_add(context, skeleton)
     # Edit mode required to add bones to the armature
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -143,12 +143,12 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
                 elif bufferFormats[k] == 'SEMANTIC_COLOR':
                     vertexColor_text = find_elem(buffer, "array", "name", "data").text
                     vertexColor = to_array(vertexColor_text, float, [-1]) / 255
-                    assert (len(vertexColor) == numVertices*4)
+                    assert (len(vertexColor) == numVertices * 4)
             faces_text = find_elem(SubMeshes[j][0], "array", "name", "indexBuffer").text
             faces = to_array(faces_text, int, [-1, 3])
 
             # Add the mesh to the scene
-            mesh = bpy.data.meshes.new(name="GMesh_lod"+str(i))
+            mesh = bpy.data.meshes.new(name = file_name + "_lod" + str(i))
             mesh.from_pydata(vertices, [], list(faces))
             obj = object_data_add(context, mesh)
             mesh.shade_smooth()
@@ -246,7 +246,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         sim_mats[i]["maximumMaxDistance"] = maximumMaxDistance
             
         # Add the mesh to the scene
-        mesh = bpy.data.meshes.new(name="PMesh_lod"+str(i))
+        mesh = bpy.data.meshes.new(name = file_name + "_plod" + str(i))
         mesh.from_pydata(vertices, [], list(faces))
         obj = object_data_add(context, mesh)
         mesh.shade_smooth()

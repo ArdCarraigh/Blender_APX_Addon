@@ -150,9 +150,11 @@ def smoothAllVertices(context, obj, group_name):
     vgroups.active_index = vgroups[group_name].index
     bpy.ops.object.vertex_group_smooth(group_select_mode='ACTIVE', factor=1, repeat=1)
     
-def copyMaxDistance(context, obj):
+def copyMaxDistance(context, obj, group_name):
     vgroups = obj.vertex_groups
     verts = obj.data.vertices
-    weights = getWeightArray(verts, vgroups['PhysXMaximumDistance']) * obj['maximumMaxDistance'] * 0.5 + 0.5
+    weights = getWeightArray(verts, vgroups['PhysXMaximumDistance']) * obj['maximumMaxDistance']
+    if group_name == 'PhysXBackstopDistance':
+        weights = weights * 0.5 + 0.5
     for k in range(len(verts)):
-        vgroups['PhysXBackstopDistance'].add([k], weights[k], 'REPLACE')
+        vgroups[group_name].add([k], weights[k], 'REPLACE')

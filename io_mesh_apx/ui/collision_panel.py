@@ -384,9 +384,9 @@ class PhysXCollisionPanel(bpy.types.Panel):
                 box = row.box()
                 box.label(text="General", icon='SETTINGS')
                 box_row = box.row()
-                box_row.operator(GenerateRagdoll.bl_idname, text = "Generate Ragdoll")
+                box_row.operator(GenerateRagdoll.bl_idname, text = "Generate Ragdoll", icon = 'MODIFIER_DATA')
                 box_row = box.row()
-                box_row.operator(LexarRagdoll.bl_idname, text = "Lexar Ragdoll")
+                box_row.operator(LexarRagdoll.bl_idname, text = "Copy Ragdoll", icon = 'COPYDOWN')
                 box_row = box.row()
                 box_row.enabled = n_spheres > 0
                 box_row.operator(MirrorRagdoll.bl_idname, text = "Mirror Ragdoll", icon = 'MOD_MIRROR')

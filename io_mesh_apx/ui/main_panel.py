@@ -232,7 +232,7 @@ PROPS_Main_Panel = [
             ('cloth_sim', "cloth_sim", "Show the cloth simulation PhysX subpanel", 'TOOL_SETTINGS', 2),
             ('cloth_mat', "cloth_mat", "Show the cloth material PhysX subpanel", 'MATCLOTH', 3),
             ('hair_pin', "hair_pin", "Show the Hairworks pin subpanel", 'PINNED', 4),
-            ('hair_tools', "hair_tools", "Show the Hairworks tools subpanel", 'TOOL_SETTINGS', 5),
+            ('hair_tools', "hair_tools", "Show the Hairworks tools subpanel", 'MODIFIER', 5),
             ('hair_mat', "hair_mat", "Show the Hairworks Material subpanel", 'MATERIAL', 6)
         ),
         default='collision'

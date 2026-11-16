@@ -3,8 +3,35 @@
 
 import bpy
 import numpy as np
-from bpy.props import BoolProperty, FloatProperty, IntProperty
-from io_mesh_apx.utils import GetCollection, GetArmature
+from bpy.types import Operator
+from bpy.props import BoolProperty, FloatProperty, IntProperty, EnumProperty
+from io_mesh_apx.utils import GetCollection, GetArmature, getClothMeshes
+from io_mesh_apx.tools.cloth_tools import copyClothMaterial
+
+class CopyClothMaterial(Operator):
+    """Copy simulation material from another clothing mesh"""
+    bl_idname = "physx.copy_cloth_material"
+    bl_label = "Copy simulation material from another clothing mesh"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_property = "object"
+    
+    object: EnumProperty(
+        options={'HIDDEN'},
+        name="Clothing Meshes",
+        items=getClothMeshes
+    )
+    
+    def execute(self, context):
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.context.scene.cursor.rotation_euler = (0.0, 0.0, 0.0)
+        copyClothMaterial(context, self.object)
+        return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
     
 class PhysXClothMaterialPanel(bpy.types.Panel):
     bl_idname = 'VIEW3D_PT_PhysX_cloth_mat_panel'
@@ -25,6 +52,9 @@ class PhysXClothMaterialPanel(bpy.types.Panel):
             obj = context.active_object
             if main_coll and obj and obj in arma.children and obj.type == 'MESH':
                 
+                row = layout.row()
+                row.operator(CopyClothMaterial.bl_idname, text = "Copy Simulation Material", icon = 'COPYDOWN')
+                layout.separator()
                 
                 header, panel = layout.panel("cloth_stiffness_panel", default_closed=False)
                 header.label(text="Stiffness")
@@ -618,4 +648,4 @@ PROPS_ClothMaterial_Panel = [
     ))
 ]
 
-CLASSES_ClothMaterial_Panel = [PhysXClothMaterialPanel]
+CLASSES_ClothMaterial_Panel = [CopyClothMaterial, PhysXClothMaterialPanel]
