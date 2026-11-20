@@ -101,7 +101,8 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
     corner_verts_array = np.zeros(len(corner_verts), dtype = int)
     corner_verts.foreach_get("value", corner_verts_array)
     loops = mesh.loops
-    data = [[] for i in range(len(mesh.vertices))]
+    range_vertices = range(len(mesh.vertices))
+    data = [[] for i in range_vertices]
 
     match type:
         case "NORMAL": 
@@ -114,13 +115,19 @@ def GetLoopDataPerVertex(mesh, type, layername = None):
                 data[i] = np.mean(data[i], axis=0)
         
         case "TANGENT":
+            data2 = [[] for i in range_vertices]
+            data_array2 = np.zeros(len(loops) * 3)
+            loops.foreach_get("bitangent_sign", data_array2)
             data_array = np.zeros(len(loops) * 3)
             loops.foreach_get("tangent", data_array)
             data_array = data_array.reshape(-1,3)
             for loop, vert in enumerate(corner_verts_array):
                 data[vert].append(data_array[loop])
+                data2[vert].append(data_array2[loop])
             for i in range(len(data)):
-                data[i] = (*np.mean(data[i], axis=0), 1)
+                sign = np.mean(data2[i])
+                sign = np.ceil(sign) if sign >= 0 else np.floor(sign)
+                data[i] = (*np.mean(data[i], axis=0), sign)
                 
         case "UV":
             data_array = np.zeros(len(loops) * 2)
@@ -204,12 +211,11 @@ def getVertexBary(vert_co, vert_normal, target_obj, target_vertex, target_face, 
     vertProj, vertThickness = getProjectedVertex(vert_co, target_normal, target_co)
     vertBary = cart2bary(target_obj, target_face, vertProj)
     vertBary[2] = vertThickness
-    vert_normal.length = normal_offset
-    normProj, normThickness = getProjectedVertex(vert_co + vert_normal, target_normal, target_co)
+    normProj, normThickness = getProjectedVertex(vert_co + vert_normal * normal_offset, target_normal, target_co)
     normBary = cart2bary(target_obj, target_face, normProj)
     normBary[2] = normThickness
     if vert_tangent:
-        tangProj, tangThickness = getProjectedVertex(vert_co + vert_tangent, target_normal, target_co)
+        tangProj, tangThickness = getProjectedVertex(vert_co + vert_tangent * normal_offset, target_normal, target_co)
         tangBary = cart2bary(target_obj, target_face, tangProj)
         tangBary[2] =  tangThickness
         return vertBary, normBary, tangBary

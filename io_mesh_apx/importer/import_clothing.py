@@ -252,7 +252,7 @@ def read_clothing(context, filepath, rotate_180, rm_ph_me):
         mesh.shade_smooth()
         
         # Normals
-        mesh.normals_split_custom_set_from_vertices(normals)
+        mesh.normals_split_custom_set_from_vertices(skinningNormals)
         #Tangents are read-only in Blender, we can't import them
                 
         # Clothing Paints

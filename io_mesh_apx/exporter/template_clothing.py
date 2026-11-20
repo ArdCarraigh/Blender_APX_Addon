@@ -288,8 +288,8 @@ templatePhysicalMesh = '''<value type="Ref" included="1" className="ClothingPhys
             <array name="optimizationData" size="{numOptimizationData}" type="U8">
               {optimizationData}
             </array>
-            <value name="hasNegativeBackstop" type="Bool">false</value>
-            <value name="isClosed" type="Bool">false</value>
+            <value name="hasNegativeBackstop" type="Bool">{hasNegativeBackstop}</value>
+            <value name="isClosed" type="Bool">{isClosed}</value>
             <array name="indices" size="{numFaceIndices_PhysicalMesh}" type="U32">
               {faceIndices_PhysicalMesh}
             </array>

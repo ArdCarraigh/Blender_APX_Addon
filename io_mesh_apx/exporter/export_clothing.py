@@ -9,7 +9,7 @@ from copy import deepcopy
 from mathutils import Matrix, Vector
 from io_mesh_apx.exporter.template_clothing import *
 from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, apply_drive
-from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray, deleteIsolatedVertices
+from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTree, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray, deleteIsolatedVertices
     
 def write_clothing(context, filepath, apply_modifiers):
     kwargs = {}
@@ -108,6 +108,7 @@ def write_clothing(context, filepath, apply_modifiers):
     storedPhysicalMeshesNormalOffsets = []
     storedPhysicalMeshesMaxEdgeLength = []
     storedPhysicalMeshesAllNormals = []
+    KDTrees = []
     for numLod, obj in enumerate(objects):
         kwargs_materials = {}
         kwargs_lod = {}
@@ -180,8 +181,15 @@ def write_clothing(context, filepath, apply_modifiers):
         # Normals
         normals = GetLoopDataPerVertex(physics_mesh, "NORMAL")
         kwargs_physical['normals_PhysicalMesh'] = ', '.join([' '.join(map(str, x)) for x in normals])
-        #I don't know what to do with these skinning normals yet
-        kwargs_physical['skinningNormals_PhysicalMesh'] = kwargs_physical['normals_PhysicalMesh']
+        
+        # Skinning Normals
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.average_normals(average_type='FACE_AREA')
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode='OBJECT')
+        skinningNormals = GetLoopDataPerVertex(physics_mesh, "NORMAL")
+        kwargs_physical['skinningNormals_PhysicalMesh'] = ', '.join([' '.join(map(str, x)) for x in skinningNormals])
         
         # Constrain Coefficients
         maximumMaxDistance = obj['maximumMaxDistance']
@@ -197,8 +205,24 @@ def write_clothing(context, filepath, apply_modifiers):
         constrainCoefficients = np.array(constrainCoefficients).T
         kwargs_physical['constrainCoefficients_PhysicalMesh'] = ','.join([' '.join(map(str, x)) for x in constrainCoefficients])
         
+        # Has Negative Backstop
+        kwargs_physical['hasNegativeBackstop'] = np.any(constrainCoefficients[:,2] < 0)
+        
         # Maximum Max Distance
         kwargs_physical['maximumMaxDistance'] = np.max(constrainCoefficients[:,0])
+        
+        # Is Closed
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_non_manifold()
+        bpy.ops.object.mode_set(mode='OBJECT')
+        if ".select_vert" not in physics_mesh.attributes:
+            physics_mesh.attributes.new(".select_vert", "BOOLEAN", "POINT")
+        select_array = np.zeros(n_vertices)
+        physics_mesh.attributes[".select_vert"].data.foreach_get("value", select_array)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode='OBJECT')
+        kwargs_physical['isClosed'] = not np.any(select_array)
                 
         # Get Bone Weights and Indices
         boneIndices = []
@@ -223,8 +247,14 @@ def write_clothing(context, filepath, apply_modifiers):
         for i in range(0,n_vertices,2):
             second_i = i + 1
             opt1 = np.count_nonzero(boneWeights[i])
-            opt2 = np.count_nonzero(boneWeights[second_i]) if second_i < len(boneWeights) else 0
-            byte = "0" + Get3Bits(opt2) + "0" + Get3Bits(opt1)
+            neg1 = str(int(constrainCoefficients[:,2][i] < 0))
+            if second_i < len(boneWeights):
+                opt2 = np.count_nonzero(boneWeights[second_i])
+                neg2 = str(int(constrainCoefficients[:,2][second_i] < 0))
+            else:
+                opt2 = 0
+                neg2 = "0"
+            byte = neg2 + Get3Bits(opt2) + neg1 + Get3Bits(opt1)
             optimizationData.append(int(byte,2))
         kwargs_physical['numOptimizationData'] = len(optimizationData)
         kwargs_physical['optimizationData'] = ' '.join(map(str, optimizationData))
@@ -264,15 +294,17 @@ def write_clothing(context, filepath, apply_modifiers):
         kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength']*0.1
         kwargs_lod['physicsSubmeshPartitioning'] = ''
         kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
-        if np.all(np.any(driveDataGraphical > 0.6, axis = 1)):
+        kd = MakeKDTree(vertices)
+        KDTrees.append(kd)
+        if np.all(~drive_bool_array):
             immediateClothMap_bool = True
-            immediate_kdtree = MakeKDTreeFromObject(physicalMesh)
+            immediate_kdtree = kd
             immediateClothMap = []
         else:
             immediateClothMap_bool = False
-            KDTrees = []
+            GroupKDTrees = []
             for group in range(n_groups):
-                KDTrees.append(MakeKDTreeFromObject(physicalMesh, np.where(driveLatchGroupPhysical == group)[0]))
+                GroupKDTrees.append(MakeKDTree(vertices, np.where(driveLatchGroupPhysical == group)[0]))
             skinClothMap = []
             physicsSubmeshPartitioning = []
             
@@ -326,7 +358,7 @@ def write_clothing(context, filepath, apply_modifiers):
                 else:
                     n_groups, driveDataGraphical, latchDataGraphical = cleanUpDriveLatchGroups(submesh, True)
                     driveLatchGroupGraphical = np.argmax(np.sum([driveDataGraphical, latchDataGraphical], axis=0), axis=1)
-                    submesh_closestVerts = np.array([getClosest(vert.co, KDTrees[driveLatchGroupGraphical[vert_id]], max_edge_length) for vert_id, vert in enumerate(mesh.vertices)])
+                    submesh_closestVerts = np.array([getClosest(vert.co, GroupKDTrees[driveLatchGroupGraphical[vert_id]], max_edge_length) for vert_id, vert in enumerate(mesh.vertices)])
                 #Ordering by Maximum Distance
                 temp_verts_score = constrainCoefficients[submesh_closestVerts][:,0]
                 temp_faces_score = temp_verts_score[face_array].reshape(-1,3)
@@ -524,10 +556,6 @@ def write_clothing(context, filepath, apply_modifiers):
         bpy.data.objects.remove(meshLod)
     
     # Deal with Physical Meshes
-    if num_objects > 1:
-        KDTrees = []
-        for i in range(num_objects):
-            KDTrees.append(MakeKDTreeFromObject(storedPhysicalMeshes[i]))
     for i in range(num_objects):
         # Transition Up/Down
         storedPhysicalMeshesDicts[i]["numTransitionDown"] = 0
