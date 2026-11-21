@@ -9,7 +9,7 @@ from copy import deepcopy
 from mathutils import Matrix, Vector
 from io_mesh_apx.exporter.template_clothing import *
 from io_mesh_apx.tools.paint_tools import cleanUpDriveLatchGroups, apply_drive
-from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTree, MakeKDTreeFromObject, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray, deleteIsolatedVertices
+from io_mesh_apx.utils import JoinThem, GetLoopDataPerVertex, Get3Bits, selectOnly, applyTransforms, MakeKDTree, getClosest, getVertexBary, SplitMesh, TriangulateActiveMesh, OrderVertices, GetCollection, GetArmature, getWeightArray, deleteIsolatedVertices
     
 def write_clothing(context, filepath, apply_modifiers):
     kwargs = {}
@@ -291,9 +291,11 @@ def write_clothing(context, filepath, apply_modifiers):
         kwargs_lod['numSkinClothMap'] = 0
         kwargs_lod['immediateClothMap'] = ''
         kwargs_lod['skinClothMap'] = ''
-        kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength']*0.1
+        kwargs_lod['skinClothMapOffset'] = kwargs_physical['averageEdgeLength'] * 0.1
         kwargs_lod['physicsSubmeshPartitioning'] = ''
         kwargs_lod['numPhysicsSubmeshPartitioning'] = 0
+        physicsSubmeshPartitioning = []
+        writePhysicsSubmeshPartitioning = False
         kd = MakeKDTree(vertices)
         KDTrees.append(kd)
         if np.all(~drive_bool_array):
@@ -306,7 +308,6 @@ def write_clothing(context, filepath, apply_modifiers):
             for group in range(n_groups):
                 GroupKDTrees.append(MakeKDTree(vertices, np.where(driveLatchGroupPhysical == group)[0]))
             skinClothMap = []
-            physicsSubmeshPartitioning = []
             
         # Append Per Physical Lod Information  
         storedPhysicalMeshesDicts.append(kwargs_physical)
@@ -492,14 +493,16 @@ def write_clothing(context, filepath, apply_modifiers):
                         closestFace = faces_final[np.where(faces_final == submesh_closestVerts[vert_id])[0][0]]
                         vertBary, normBary, tangBary = getVertexBary(vert.co, Vector((normals[vert_id])), physicalMesh, submesh_closestVerts[vert_id], closestFace, kwargs_lod['skinClothMapOffset'], Vector((tangents[vert_id][0:3])))
                         skinClothMap.append([' '.join(map(str, vertBary)), closestFace[0], ' '.join(map(str, normBary)), closestFace[1], ' '.join(map(str, tangBary)), closestFace[2], n_vertices_all + vert_id])
-                    # Compute physicsSubmeshPartitioning
-                    numIndices = np.count_nonzero(temp_faces_nsim) * 3
-                    if numIndices:
-                        numVerticesAdditional = len(set(face_array[0:numIndices]))
-                        numVertices = np.count_nonzero(constrainCoefficients[submesh_closestVerts][:,0])
-                        physicsSubmeshPartitioning.append([numSubmesh, 0, numVertices, numVerticesAdditional, numIndices])
-                    else:
-                        physicsSubmeshPartitioning.append([numSubmesh, 0, 0, 0, 0])
+                        
+                # Compute physicsSubmeshPartitioning
+                numIndices = np.count_nonzero(temp_faces_nsim) * 3
+                if numIndices:
+                    writePhysicsSubmeshPartitioning = True
+                    numVerticesAdditional = len(set(face_array[0:numIndices]))
+                    numVertices = np.count_nonzero(constrainCoefficients[submesh_closestVerts][:,0])
+                    physicsSubmeshPartitioning.append([numSubmesh, 0, numVertices, numVerticesAdditional, numIndices])
+                else:
+                    physicsSubmeshPartitioning.append([numSubmesh, 0, 0, 0, 0])
 
                 # Append submesh
                 submeshes.append(templateSubMesh.format(**kwargs_submesh))
@@ -544,7 +547,8 @@ def write_clothing(context, filepath, apply_modifiers):
             kwargs_lod['numSkinClothMap'] = n_vertices_all
             kwargs_lod['skinClothMap'] = ','.join([' '.join(map(str, x)) for x in skinClothMap])
         
-            # physicsSubmeshPartitioning   
+        # physicsSubmeshPartitioning
+        if writePhysicsSubmeshPartitioning:
             kwargs_lod['numPhysicsSubmeshPartitioning'] = numSubmesh+1
             kwargs_lod['physicsSubmeshPartitioning'] = ','.join([' '.join(map(str, x)) for x in physicsSubmeshPartitioning])
             
